@@ -150,3 +150,124 @@ export interface VehicleFilters {
   brand?: string;
   search?: string;
 }
+
+// ─── Drivers ───────────────────────────────────────────────────────────────
+
+export type DriverStatus = "active" | "on_duty" | "on_leave" | "inactive";
+
+export type DriverContractType = "employee" | "collaborator" | "freelance";
+
+export type DriverLeaveType = "vacation" | "sick" | "personal" | "other";
+
+export type DriverLeaveStatus = "approved" | "pending" | "rejected";
+
+export type DriverFileCategory =
+  | "identity"
+  | "license"
+  | "contract"
+  | "medical"
+  | "other";
+
+export interface DriverPersonal {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string | null;
+  address: string;
+  taxCode: string;
+  languages: string[];
+}
+
+export interface DriverDocuments {
+  drivingLicenseNumber: string;
+  drivingLicenseExpiration: string | null;
+  cqcExpiration: string | null;
+  nccLicenseNumber: string | null;
+  nccLicenseExpiration: string | null;
+  medicalCertificateExpiration: string | null;
+}
+
+export interface DriverOperational {
+  status: DriverStatus;
+  assignedVehicleId: string | null;
+  hireDate: string | null;
+  contractType: DriverContractType;
+  employeeId: string;
+}
+
+export interface DriverFile {
+  id: string;
+  name: string;
+  type: "pdf" | "image";
+  category: DriverFileCategory;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface DriverAssignment {
+  id: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  startDate: string;
+  endDate: string | null;
+  notes: string;
+}
+
+export interface DriverLeave {
+  id: string;
+  type: DriverLeaveType;
+  startDate: string;
+  endDate: string;
+  status: DriverLeaveStatus;
+  notes: string;
+}
+
+export interface Driver {
+  id: string;
+  photoUrl: string | null;
+  personal: DriverPersonal;
+  documents: DriverDocuments;
+  operational: DriverOperational;
+  files: DriverFile[];
+  assignments: DriverAssignment[];
+  leaves: DriverLeave[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DriverListItem {
+  id: string;
+  photoUrl: string | null;
+  fullName: string;
+  phone: string;
+  assignedVehicle: {
+    id: string;
+    plate: string;
+    brand: string;
+    model: string;
+  } | null;
+  status: DriverStatus;
+  drivingLicenseExpiration: string | null;
+  cqcExpiration: string | null;
+  languages: string[];
+}
+
+export interface DriverFormData {
+  photoUrl: string | null;
+  personal: DriverPersonal;
+  documents: DriverDocuments;
+  operational: DriverOperational;
+  files: DriverFile[];
+  notes: string;
+}
+
+export interface DriverFilters {
+  status?: DriverStatus | "all";
+  vehicleId?: string;
+  language?: string;
+  search?: string;
+}
