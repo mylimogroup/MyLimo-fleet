@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #f1f5f9;
   --foreground: #0f172a;
   --primary: #1e3a5f;
   --primary-foreground: #f8fafc;
@@ -10,6 +10,15 @@
   --muted: #64748b;
   --card: #ffffff;
   --border: #e2e8f0;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-muted: #94a3b8;
+  --sidebar-border: #1e293b;
+  --sidebar-hover: #1e293b;
+  --sidebar-active: #334155;
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.05);
 }
 
 @theme inline {
@@ -22,26 +31,27 @@
   --color-muted: var(--muted);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #f1f5f9;
-    --primary: #3b6ea5;
-    --primary-foreground: #f8fafc;
-    --accent: #d4af37;
-    --accent-foreground: #0b1120;
-    --muted: #94a3b8;
-    --card: #111827;
-    --border: #1e293b;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.6);
+  backdrop-filter: blur(2px);
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
 }

@@ -13,9 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyLimo Fleet — Chauffeur Fleet Management",
-  description:
-    "Modern fleet management system for chauffeur companies. Manage vehicles, drivers, bookings, and dispatch in one place.",
+  title: "Dashboard — MyLimo Fleet",
+  description: "Fleet management dashboard for MyLimo chauffeur company.",
 };
 
 export default function RootLayout({
@@ -28,7 +27,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-screen">{children}</body>
     </html>
   );
 }
