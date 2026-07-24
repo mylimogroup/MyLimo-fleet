@@ -295,6 +295,97 @@ export interface Database {
           notes?: string;
         };
       };
+      maintenance_records: {
+        Row: {
+          id: string;
+          vehicle_id: string;
+          category: string;
+          status: string;
+          description: string;
+          workshop: string;
+          invoice_number: string | null;
+          scheduled_date: string;
+          completed_date: string | null;
+          mileage: number;
+          labour_cost: number;
+          parts_cost: number;
+          total_cost: number;
+          estimated_cost: number;
+          next_service_date: string | null;
+          next_service_mileage: number | null;
+          notes: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          vehicle_id: string;
+          category: string;
+          status: string;
+          description: string;
+          workshop: string;
+          invoice_number?: string | null;
+          scheduled_date: string;
+          completed_date?: string | null;
+          mileage: number;
+          labour_cost?: number;
+          parts_cost?: number;
+          total_cost?: number;
+          estimated_cost?: number;
+          next_service_date?: string | null;
+          next_service_mileage?: number | null;
+          notes?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          vehicle_id?: string;
+          category?: string;
+          status?: string;
+          description?: string;
+          workshop?: string;
+          invoice_number?: string | null;
+          scheduled_date?: string;
+          completed_date?: string | null;
+          mileage?: number;
+          labour_cost?: number;
+          parts_cost?: number;
+          total_cost?: number;
+          estimated_cost?: number;
+          next_service_date?: string | null;
+          next_service_mileage?: number | null;
+          notes?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      maintenance_attachments: {
+        Row: {
+          id: string;
+          maintenance_id: string;
+          name: string;
+          type: string;
+          url: string;
+          uploaded_at: string;
+        };
+        Insert: {
+          id?: string;
+          maintenance_id: string;
+          name: string;
+          type: string;
+          url: string;
+          uploaded_at?: string;
+        };
+        Update: {
+          id?: string;
+          maintenance_id?: string;
+          name?: string;
+          type?: string;
+          url?: string;
+          uploaded_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

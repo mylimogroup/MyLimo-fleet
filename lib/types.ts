@@ -271,3 +271,126 @@ export interface DriverFilters {
   language?: string;
   search?: string;
 }
+
+// ─── Maintenance ───────────────────────────────────────────────────────────
+
+export type MaintenanceCategory =
+  | "oil_change"
+  | "inspection"
+  | "brakes"
+  | "tyres"
+  | "insurance"
+  | "road_tax"
+  | "mot"
+  | "battery"
+  | "air_conditioning"
+  | "unexpected_repair";
+
+export type MaintenanceStatus =
+  | "scheduled"
+  | "in_progress"
+  | "completed"
+  | "overdue"
+  | "cancelled";
+
+export type MaintenanceAttachmentType = "invoice" | "photo" | "pdf";
+
+export interface MaintenanceAttachment {
+  id: string;
+  name: string;
+  type: MaintenanceAttachmentType;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface MaintenanceRecord {
+  id: string;
+  vehicleId: string;
+  category: MaintenanceCategory;
+  status: MaintenanceStatus;
+  description: string;
+  workshop: string;
+  invoiceNumber: string | null;
+  scheduledDate: string;
+  completedDate: string | null;
+  mileage: number;
+  labourCost: number;
+  partsCost: number;
+  totalCost: number;
+  estimatedCost: number;
+  nextServiceDate: string | null;
+  nextServiceMileage: number | null;
+  notes: string;
+  attachments: MaintenanceAttachment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaintenanceListItem {
+  id: string;
+  vehicleId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  licensePlate: string;
+  category: MaintenanceCategory;
+  status: MaintenanceStatus;
+  workshop: string;
+  scheduledDate: string;
+  completedDate: string | null;
+  mileage: number;
+  estimatedCost: number;
+  totalCost: number;
+  nextServiceDate: string | null;
+}
+
+export interface MaintenanceFormData {
+  vehicleId: string;
+  category: MaintenanceCategory;
+  status: MaintenanceStatus;
+  description: string;
+  workshop: string;
+  invoiceNumber: string;
+  scheduledDate: string;
+  completedDate: string | null;
+  mileage: number | "";
+  labourCost: number | "";
+  partsCost: number | "";
+  estimatedCost: number | "";
+  nextServiceDate: string | null;
+  nextServiceMileage: number | null;
+  notes: string;
+  attachments: MaintenanceAttachment[];
+}
+
+export interface MaintenanceKPIs {
+  vehiclesInMaintenance: number;
+  upcomingServices: number;
+  overdueMaintenance: number;
+  monthlyMaintenanceCosts: number;
+}
+
+export type MaintenanceAlertType =
+  | "service_overdue"
+  | "insurance_expiring"
+  | "road_tax_expiring"
+  | "inspection_expiring"
+  | "oil_service_due";
+
+export interface MaintenanceAlert {
+  vehicleId: string;
+  licensePlate: string;
+  type: MaintenanceAlertType;
+  message: string;
+  severity: "warning" | "danger";
+  dueDate?: string;
+  dueMileage?: number;
+}
+
+export interface MaintenanceFilters {
+  search?: string;
+  brand?: string;
+  category?: MaintenanceCategory | "all";
+  status?: MaintenanceStatus | "all";
+  dateFrom?: string;
+  dateTo?: string;
+}
