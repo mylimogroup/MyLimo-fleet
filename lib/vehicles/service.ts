@@ -14,11 +14,19 @@ import {
   maintenanceHistoryType,
   mergeVehicleDeadlines,
 } from "@/lib/vehicles/deadlines";
+import {
+  addCostToList,
+  deleteCostFromList,
+  formDataToCostEntry,
+  getCostCategoryLabel,
+  updateCostInList,
+} from "@/lib/vehicles/costs";
 import { getCategoryLabel } from "@/lib/maintenance/utils";
 import type {
   MaintenanceFormData,
   MaintenanceRecord,
   Vehicle,
+  VehicleCostFormData,
   VehicleDeadlineFormData,
   VehicleFilters,
   VehicleFormData,
@@ -207,6 +215,70 @@ export class MockVehicleRepository implements VehicleRepository {
     return vehicleStore[index];
   }
 
+  async addCost(vehicleId: string, data: VehicleCostFormData): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const now = new Date().toISOString();
+    const cost = formDataToCostEntry(data);
+    const vehicle = vehicleStore[index];
+
+    vehicleStore[index] = {
+      ...vehicle,
+      costs: addCostToList(vehicle.costs, data),
+      updatedAt: now,
+      history: [
+        {
+          id: crypto.randomUUID(),
+          type: "cost_added",
+          description: `Cost added: ${getCostCategoryLabel(cost.category)} — ${cost.description}`,
+          timestamp: now,
+        },
+        ...vehicle.history,
+      ],
+    };
+    return vehicleStore[index];
+  }
+
+  async updateCost(
+    vehicleId: string,
+    costId: string,
+    data: VehicleCostFormData
+  ): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const vehicle = vehicleStore[index];
+    const existing = vehicle.costs.find((c) => c.id === costId);
+    if (!existing) throw new Error(`Cost ${costId} not found`);
+
+    const now = new Date().toISOString();
+
+    vehicleStore[index] = {
+      ...vehicle,
+      costs: updateCostInList(vehicle.costs, costId, data),
+      updatedAt: now,
+    };
+    return vehicleStore[index];
+  }
+
+  async deleteCost(vehicleId: string, costId: string): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const vehicle = vehicleStore[index];
+    const removed = vehicle.costs.find((c) => c.id === costId);
+    if (!removed) throw new Error(`Cost ${costId} not found`);
+
+    const now = new Date().toISOString();
+    vehicleStore[index] = {
+      ...vehicle,
+      costs: deleteCostFromList(vehicle.costs, costId),
+      updatedAt: now,
+    };
+    return vehicleStore[index];
+  }
+
   async addDeadline(
     vehicleId: string,
     data: VehicleDeadlineFormData
@@ -333,6 +405,18 @@ export class SupabaseVehicleRepository implements VehicleRepository {
   }
 
   async updateCosts(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async addCost(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async updateCost(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async deleteCost(): Promise<Vehicle> {
     throw new Error("SupabaseVehicleRepository not yet implemented");
   }
 

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:costs": "node --experimental-strip-types --test lib/vehicles/money.test.mjs lib/vehicles/cost-crud.test.mjs"
   },
   "dependencies": {
     "next": "16.2.10",

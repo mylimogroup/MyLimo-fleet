@@ -23,12 +23,61 @@ export interface VehicleDocument {
   updatedAt: string;
 }
 
+export type ItalianVatRate = 22 | 10 | 5 | 4 | 0;
+
 export interface VehicleCostEntry {
   id: string;
   date: string;
+  category: VehicleCostCategory;
   description: string;
   supplier: string;
-  cost: number;
+  netAmount: number | null;
+  vatAmount: number | null;
+  vatRate?: ItalianVatRate | null;
+  totalAmount: number;
+  mileage: number | null;
+  notes: string;
+  invoicePdfUrl: string | null;
+  invoicePdfName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type VehicleCostCategory =
+  | "maintenance"
+  | "repairs"
+  | "tires"
+  | "insurance"
+  | "road_tax"
+  | "vehicle_inspection"
+  | "ncc_license"
+  | "cleaning"
+  | "parking"
+  | "tolls"
+  | "fuel"
+  | "adblue"
+  | "other";
+
+export interface VehicleCostFormData {
+  vehicleId: string;
+  date: string;
+  category: VehicleCostCategory;
+  description: string;
+  supplier: string;
+  netAmount: number | "";
+  vatRate: ItalianVatRate;
+  mileage: number | "";
+  notes: string;
+  invoicePdfUrl: string | null;
+  invoicePdfName: string | null;
+}
+
+export interface VehicleCostKPIs {
+  totalYear: number;
+  totalMonth: number;
+  maintenanceRepairsYear: number;
+  fuelYear: number;
+  costPerKm: number | null;
 }
 
 export type VehicleHistoryType =

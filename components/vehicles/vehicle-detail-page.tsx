@@ -198,7 +198,9 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
           {activeTab === "deadlines" && (
             <DeadlinesTab vehicle={vehicle} onRefresh={refresh} />
           )}
-          {activeTab === "costs" && <CostsTab vehicle={vehicle} />}
+          {activeTab === "costs" && (
+            <CostsTab vehicle={vehicle} onRefresh={refresh} />
+          )}
           {activeTab === "history" && <HistoryTab vehicle={vehicle} />}
         </div>
       </div>

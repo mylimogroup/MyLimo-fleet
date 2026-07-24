@@ -6,6 +6,7 @@ import type {
   VehicleHistoryEntry,
   VehicleListItem,
   VehicleDeadlineFormData,
+  VehicleCostFormData,
 } from "@/lib/types";
 import { getNextDeadlineForVehicle } from "@/lib/vehicles/deadlines";
 
@@ -20,6 +21,13 @@ export interface VehicleRepository {
     id: string,
     costs: Vehicle["costs"]
   ): Promise<Vehicle>;
+  addCost(vehicleId: string, data: VehicleCostFormData): Promise<Vehicle>;
+  updateCost(
+    vehicleId: string,
+    costId: string,
+    data: VehicleCostFormData
+  ): Promise<Vehicle>;
+  deleteCost(vehicleId: string, costId: string): Promise<Vehicle>;
   addDeadline(
     vehicleId: string,
     data: import("@/lib/types").VehicleDeadlineFormData
