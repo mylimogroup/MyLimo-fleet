@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type {
-  MaintenanceAttachment,
-  MaintenanceFormData,
-} from "@/lib/types";
-import { MAINTENANCE_CATEGORIES } from "@/lib/maintenance/constants";
+import type { MaintenanceFormData, TireType } from "@/lib/types";
+import {
+  MAINTENANCE_CATEGORIES,
+  TIRE_ROTATION_INTERVALS,
+} from "@/lib/maintenance/constants";
 import { createEmptyMaintenanceForm } from "@/lib/maintenance/repository";
 import { getVehicleRepository } from "@/lib/vehicles/service";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,17 @@ interface MaintenanceModalProps {
   defaultVehicleId?: string;
 }
 
+function emptyTireDetails() {
+  return {
+    tireType: "all_season" as TireType,
+    brand: "",
+    model: "",
+    size: "",
+    installationDate: new Date().toISOString().split("T")[0],
+    installationMileage: 0,
+  };
+}
+
 export function MaintenanceModal({
   open,
   onClose,
@@ -40,8 +51,9 @@ export function MaintenanceModal({
     return base;
   });
   const [vehicles, setVehicles] = useState<
-    { value: string; label: string }[]
+    { value: string; label: string; mileage: number }[]
   >([]);
+  const [customRotationKm, setCustomRotationKm] = useState(false);
 
   useEffect(() => {
     getVehicleRepository()
@@ -51,6 +63,7 @@ export function MaintenanceModal({
           list.map((v) => ({
             value: v.id,
             label: `${v.licensePlate} — ${v.brand} ${v.model}`,
+            mileage: v.currentMileage,
           }))
         );
       });
@@ -58,26 +71,6 @@ export function MaintenanceModal({
 
   const handleChange = (partial: Partial<MaintenanceFormData>) => {
     setFormData((prev) => ({ ...prev, ...partial }));
-  };
-
-  const addAttachments = (
-    files: File[],
-    type: MaintenanceAttachment["type"]
-  ) => {
-    const newAttachments: MaintenanceAttachment[] = files.map((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name,
-      type,
-      url: URL.createObjectURL(file),
-      uploadedAt: new Date().toISOString(),
-    }));
-    handleChange({ attachments: [...formData.attachments, ...newAttachments] });
-  };
-
-  const removeAttachment = (id: string) => {
-    handleChange({
-      attachments: formData.attachments.filter((a) => a.id !== id),
-    });
   };
 
   const handleSave = () => {
@@ -92,12 +85,15 @@ export function MaintenanceModal({
     onClose();
   };
 
+  const isTireReplacement = formData.category === "tire_replacement";
+  const selectedVehicle = vehicles.find((v) => v.value === formData.vehicleId);
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title={mode === "create" ? "Add Maintenance Record" : "Edit Record"}
-      subtitle="Log service, compliance or repair operations"
+      title={mode === "create" ? "Log Maintenance" : "Edit Maintenance Record"}
+      subtitle="Record a completed workshop or mechanical operation"
       size="xl"
       footer={
         <>
@@ -105,7 +101,7 @@ export function MaintenanceModal({
             Cancel
           </Button>
           <Button onClick={handleSave}>
-            {mode === "create" ? "Add Record" : "Save Changes"}
+            {mode === "create" ? "Save Record" : "Save Changes"}
           </Button>
         </>
       }
@@ -115,41 +111,67 @@ export function MaintenanceModal({
           <Select
             label="Vehicle"
             value={formData.vehicleId}
-            onChange={(e) => handleChange({ vehicleId: e.target.value })}
+            onChange={(e) => {
+              const vehicle = vehicles.find((v) => v.value === e.target.value);
+              handleChange({
+                vehicleId: e.target.value,
+                mileage: vehicle?.mileage ?? formData.mileage,
+              });
+            }}
             options={[
               { value: "", label: "Select vehicle..." },
-              ...vehicles,
+              ...vehicles.map((v) => ({ value: v.value, label: v.label })),
             ]}
             className="sm:col-span-2"
           />
           <Select
             label="Maintenance Type"
             value={formData.category}
-            onChange={(e) =>
+            onChange={(e) => {
+              const category = e.target
+                .value as MaintenanceFormData["category"];
               handleChange({
-                category: e.target.value as MaintenanceFormData["category"],
-              })
-            }
+                category,
+                tireDetails:
+                  category === "tire_replacement"
+                    ? formData.tireDetails ?? emptyTireDetails()
+                    : null,
+              });
+            }}
             options={MAINTENANCE_CATEGORIES.map((c) => ({
               value: c.value,
               label: c.label,
             }))}
+            className="sm:col-span-2"
           />
-          <Select
-            label="Status"
-            value={formData.status}
-            onChange={(e) =>
-              handleChange({
-                status: e.target.value as MaintenanceFormData["status"],
-              })
-            }
-            options={[
-              { value: "scheduled", label: "Scheduled" },
-              { value: "in_progress", label: "In Progress" },
-              { value: "completed", label: "Completed" },
-              { value: "overdue", label: "Overdue" },
-              { value: "cancelled", label: "Cancelled" },
-            ]}
+          <Input
+            label="Date"
+            type="date"
+            value={formData.completedDate}
+            onChange={(e) => handleChange({ completedDate: e.target.value })}
+          />
+          <div>
+            <Input
+              label="Mileage"
+              type="number"
+              value={formData.mileage}
+              onChange={(e) =>
+                handleChange({
+                  mileage: e.target.value ? Number(e.target.value) : "",
+                })
+              }
+              min={0}
+            />
+            {selectedVehicle && (
+              <p className="mt-1 text-xs text-muted">
+                Current: {selectedVehicle.mileage.toLocaleString("it-IT")} km
+              </p>
+            )}
+          </div>
+          <Input
+            label="Workshop"
+            value={formData.workshop}
+            onChange={(e) => handleChange({ workshop: e.target.value })}
           />
           <Input
             label="Description"
@@ -159,53 +181,7 @@ export function MaintenanceModal({
             required
           />
           <Input
-            label="Workshop"
-            value={formData.workshop}
-            onChange={(e) => handleChange({ workshop: e.target.value })}
-          />
-          <Input
-            label="Invoice Number"
-            value={formData.invoiceNumber}
-            onChange={(e) => handleChange({ invoiceNumber: e.target.value })}
-          />
-          <Input
-            label="Scheduled Date"
-            type="date"
-            value={formData.scheduledDate}
-            onChange={(e) => handleChange({ scheduledDate: e.target.value })}
-          />
-          <Input
-            label="Completed Date"
-            type="date"
-            value={formData.completedDate ?? ""}
-            onChange={(e) =>
-              handleChange({ completedDate: e.target.value || null })
-            }
-          />
-          <Input
-            label="Mileage"
-            type="number"
-            value={formData.mileage}
-            onChange={(e) =>
-              handleChange({
-                mileage: e.target.value ? Number(e.target.value) : "",
-              })
-            }
-            min={0}
-          />
-          <Input
-            label="Estimated Cost (€)"
-            type="number"
-            value={formData.estimatedCost}
-            onChange={(e) =>
-              handleChange({
-                estimatedCost: e.target.value ? Number(e.target.value) : "",
-              })
-            }
-            min={0}
-          />
-          <Input
-            label="Labour Cost (€)"
+            label="Labor Cost (€)"
             type="number"
             value={formData.labourCost}
             onChange={(e) =>
@@ -216,94 +192,267 @@ export function MaintenanceModal({
             min={0}
           />
           <Input
-            label="Parts Cost (€)"
+            label="Total Cost (€)"
             type="number"
-            value={formData.partsCost}
+            value={formData.totalCost}
             onChange={(e) =>
               handleChange({
-                partsCost: e.target.value ? Number(e.target.value) : "",
-              })
-            }
-            min={0}
-          />
-          <Input
-            label="Next Service Date"
-            type="date"
-            value={formData.nextServiceDate ?? ""}
-            onChange={(e) =>
-              handleChange({ nextServiceDate: e.target.value || null })
-            }
-          />
-          <Input
-            label="Next Service Mileage"
-            type="number"
-            value={formData.nextServiceMileage ?? ""}
-            onChange={(e) =>
-              handleChange({
-                nextServiceMileage: e.target.value
-                  ? Number(e.target.value)
-                  : null,
+                totalCost: e.target.value ? Number(e.target.value) : "",
               })
             }
             min={0}
           />
         </div>
+
+        {isTireReplacement && (
+          <div className="rounded-xl border border-border bg-background/50 p-4 space-y-4">
+            <p className="text-sm font-semibold">Tire Details</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Select
+                label="Tire Type"
+                value={formData.tireDetails?.tireType ?? "all_season"}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      tireType: e.target.value as TireType,
+                    },
+                  })
+                }
+                options={[
+                  { value: "summer", label: "Summer" },
+                  { value: "winter", label: "Winter" },
+                  { value: "all_season", label: "All Season" },
+                ]}
+              />
+              <Input
+                label="Brand"
+                value={formData.tireDetails?.brand ?? ""}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      brand: e.target.value,
+                    },
+                  })
+                }
+              />
+              <Input
+                label="Model"
+                value={formData.tireDetails?.model ?? ""}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      model: e.target.value,
+                    },
+                  })
+                }
+              />
+              <Input
+                label="Size"
+                value={formData.tireDetails?.size ?? ""}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      size: e.target.value,
+                    },
+                  })
+                }
+                placeholder="e.g. 245/45 R19"
+              />
+              <Input
+                label="Installation Date"
+                type="date"
+                value={formData.tireDetails?.installationDate ?? ""}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      installationDate: e.target.value,
+                    },
+                  })
+                }
+              />
+              <Input
+                label="Installation Mileage"
+                type="number"
+                value={formData.tireDetails?.installationMileage ?? ""}
+                onChange={(e) =>
+                  handleChange({
+                    tireDetails: {
+                      ...(formData.tireDetails ?? emptyTireDetails()),
+                      installationMileage: Number(e.target.value) || 0,
+                    },
+                    mileage: Number(e.target.value) || formData.mileage,
+                  })
+                }
+                min={0}
+              />
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={formData.tireRotationReminder.enabled}
+                  onChange={(e) =>
+                    handleChange({
+                      tireRotationReminder: {
+                        ...formData.tireRotationReminder,
+                        enabled: e.target.checked,
+                      },
+                    })
+                  }
+                  className="rounded border-border"
+                />
+                Create tire rotation reminder?
+              </label>
+              {formData.tireRotationReminder.enabled && (
+                <div className="flex flex-wrap gap-2">
+                  {TIRE_ROTATION_INTERVALS.map((interval) => (
+                    <button
+                      key={interval.value}
+                      type="button"
+                      onClick={() => {
+                        setCustomRotationKm(false);
+                        handleChange({
+                          tireRotationReminder: {
+                            enabled: true,
+                            intervalKm: interval.value,
+                          },
+                        });
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                        !customRotationKm &&
+                        formData.tireRotationReminder.intervalKm ===
+                          interval.value
+                          ? "border-accent bg-accent/10 font-medium"
+                          : "border-border hover:border-accent/50"
+                      }`}
+                    >
+                      {interval.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCustomRotationKm(true)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      customRotationKm
+                        ? "border-accent bg-accent/10 font-medium"
+                        : "border-border hover:border-accent/50"
+                    }`}
+                  >
+                    Custom
+                  </button>
+                  {customRotationKm && (
+                    <Input
+                      type="number"
+                      value={formData.tireRotationReminder.intervalKm}
+                      onChange={(e) =>
+                        handleChange({
+                          tireRotationReminder: {
+                            enabled: true,
+                            intervalKm: Number(e.target.value) || 10000,
+                          },
+                        })
+                      }
+                      min={1000}
+                      className="w-32"
+                      aria-label="Custom rotation interval km"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isTireReplacement && (
+          <div className="rounded-xl border border-border bg-background/50 p-4 space-y-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={formData.recurrence.enabled}
+                onChange={(e) =>
+                  handleChange({
+                    recurrence: {
+                      ...formData.recurrence,
+                      enabled: e.target.checked,
+                    },
+                  })
+                }
+                className="rounded border-border"
+              />
+              Repeat this maintenance?
+            </label>
+            {formData.recurrence.enabled && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Repeat every (km)"
+                  type="number"
+                  value={formData.recurrence.repeatEveryKm ?? ""}
+                  onChange={(e) =>
+                    handleChange({
+                      recurrence: {
+                        ...formData.recurrence,
+                        repeatEveryKm: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      },
+                    })
+                  }
+                  min={1000}
+                  placeholder="e.g. 15000"
+                />
+                <Input
+                  label="Repeat every (months)"
+                  type="number"
+                  value={formData.recurrence.repeatEveryMonths ?? ""}
+                  onChange={(e) =>
+                    handleChange({
+                      recurrence: {
+                        ...formData.recurrence,
+                        repeatEveryMonths: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      },
+                    })
+                  }
+                  min={1}
+                  placeholder="e.g. 12"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <Textarea
           label="Notes"
           value={formData.notes}
           onChange={(e) => handleChange({ notes: e.target.value })}
-          placeholder="Additional details, parts used, follow-up actions..."
+          placeholder="Additional details, follow-up actions..."
         />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <FileUpload
-            label="Invoices"
-            accept=".pdf,application/pdf"
-            multiple
-            onFilesSelected={(files) => addAttachments(files, "invoice")}
-            hint="PDF invoices"
-          />
-          <FileUpload
-            label="Photos"
-            accept="image/*"
-            multiple
-            onFilesSelected={(files) => addAttachments(files, "photo")}
-            hint="Work photos"
-          />
-          <FileUpload
-            label="Documents"
-            accept=".pdf,application/pdf"
-            multiple
-            onFilesSelected={(files) => addAttachments(files, "pdf")}
-            hint="Service reports"
-          />
-        </div>
-
-        {formData.attachments.length > 0 && (
-          <ul className="divide-y divide-border rounded-xl border border-border">
-            {formData.attachments.map((att) => (
-              <li
-                key={att.id}
-                className="flex items-center justify-between px-4 py-2.5"
-              >
-                <span className="truncate text-sm">{att.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted capitalize">{att.type}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(att.id)}
-                    className="rounded p-1 text-muted hover:text-red-600"
-                    aria-label={`Remove ${att.name}`}
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <FileUpload
+          label="Invoice PDF"
+          accept=".pdf,application/pdf"
+          onFilesSelected={(files) => {
+            const file = files[0];
+            if (file) {
+              handleChange({
+                invoicePdfUrl: URL.createObjectURL(file),
+                invoicePdfName: file.name,
+              });
+            }
+          }}
+          hint="PDF only"
+        />
+        {formData.invoicePdfName && (
+          <p className="text-sm text-muted">
+            Attached: {formData.invoicePdfName}
+          </p>
         )}
       </div>
     </Modal>

@@ -1,117 +1,164 @@
 import type {
   Vehicle,
+  VehicleDocument,
   VehicleFilters,
   VehicleFormData,
+  VehicleHistoryEntry,
   VehicleListItem,
 } from "@/lib/types";
+import { getNextDeadlineForVehicle } from "@/lib/vehicles/deadlines";
 
 export interface VehicleRepository {
   list(filters?: VehicleFilters): Promise<VehicleListItem[]>;
   getById(id: string): Promise<Vehicle | null>;
   create(data: VehicleFormData): Promise<Vehicle>;
   update(id: string, data: Partial<VehicleFormData>): Promise<Vehicle>;
+  updateMileage(id: string, mileage: number): Promise<Vehicle>;
+  updateDocuments(id: string, documents: VehicleDocument[]): Promise<Vehicle>;
+  updateCosts(
+    id: string,
+    costs: Vehicle["costs"]
+  ): Promise<Vehicle>;
   delete(id: string): Promise<void>;
 }
 
+function getNextDeadline(vehicle: Vehicle): VehicleListItem["nextDeadline"] {
+  return getNextDeadlineForVehicle(vehicle);
+}
+
 export function vehicleToListItem(vehicle: Vehicle): VehicleListItem {
-  const deadlineEntries = [
-    { type: "Insurance", date: vehicle.deadlines.insurance },
-    { type: "Road Tax", date: vehicle.deadlines.roadTax },
-    { type: "Inspection", date: vehicle.deadlines.inspection },
-    { type: "NCC Licence", date: vehicle.deadlines.nccLicence },
-    { type: "Other", date: vehicle.deadlines.other },
-  ].filter((d): d is { type: string; date: string } => d.date !== null);
-
-  const now = new Date();
-  const sorted = deadlineEntries
-    .map((d) => ({
-      type: d.type,
-      date: d.date,
-      daysRemaining: Math.ceil(
-        (new Date(d.date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      ),
-    }))
-    .sort((a, b) => a.daysRemaining - b.daysRemaining);
-
   return {
     id: vehicle.id,
-    photoUrl: vehicle.photoUrl,
     licensePlate: vehicle.licensePlate,
     brand: vehicle.brand,
     model: vehicle.model,
+    version: vehicle.version,
     currentMileage: vehicle.currentMileage,
-    status: vehicle.status,
-    nextDeadline: sorted[0] ?? null,
+    nextDeadline: getNextDeadline(vehicle),
   };
+}
+
+function appendHistory(
+  vehicle: Vehicle,
+  entry: Omit<VehicleHistoryEntry, "id">
+): VehicleHistoryEntry[] {
+  return [
+    {
+      id: crypto.randomUUID(),
+      ...entry,
+    },
+    ...vehicle.history,
+  ];
 }
 
 export function formDataToVehicle(
   data: VehicleFormData,
-  id?: string
+  id?: string,
+  existing?: Vehicle
 ): Vehicle {
   const now = new Date().toISOString();
+  const mileage =
+    typeof data.currentMileage === "number" ? data.currentMileage : 0;
+
+  if (existing) {
+    return {
+      ...existing,
+      licensePlate: data.licensePlate,
+      brand: data.brand,
+      model: data.model,
+      version: data.version,
+      year: typeof data.year === "number" ? data.year : existing.year,
+      firstRegistrationDate: data.firstRegistrationDate,
+      vin: data.vin,
+      currentMileage: mileage,
+      notes: data.notes,
+      purchaseDate: data.purchaseDate,
+      purchasePrice:
+        typeof data.purchasePrice === "number" ? data.purchasePrice : null,
+      updatedAt: now,
+      history: appendHistory(existing, {
+        type: "vehicle_updated",
+        description: "Vehicle master data updated",
+        timestamp: now,
+      }),
+    };
+  }
+
   return {
     id: id ?? crypto.randomUUID(),
-    photoUrl: data.photoUrl,
     licensePlate: data.licensePlate,
     brand: data.brand,
     model: data.model,
+    version: data.version,
     year: typeof data.year === "number" ? data.year : 0,
+    firstRegistrationDate: data.firstRegistrationDate,
     vin: data.vin,
-    color: data.color,
-    fuel: data.fuel,
-    transmission: data.transmission,
-    seats: typeof data.seats === "number" ? data.seats : 0,
-    currentMileage:
-      typeof data.currentMileage === "number" ? data.currentMileage : 0,
-    status: data.status,
-    deadlines: data.deadlines,
-    maintenance: data.maintenance,
-    tires: data.tires,
-    documents: data.documents,
-    costs: data.costs,
+    currentMileage: mileage,
+    lastMileageUpdateDate: mileage > 0 ? now.split("T")[0] : null,
     notes: data.notes,
+    purchaseDate: data.purchaseDate,
+    purchasePrice:
+      typeof data.purchasePrice === "number" ? data.purchasePrice : null,
+    documents: [],
+    costs: [],
+    deadlines: [],
+    history: [
+      {
+        id: crypto.randomUUID(),
+        type: "vehicle_created",
+        description: "Vehicle added to fleet",
+        timestamp: now,
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   };
 }
 
+export function vehicleToFormData(vehicle: Vehicle): VehicleFormData {
+  return {
+    licensePlate: vehicle.licensePlate,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    version: vehicle.version,
+    year: vehicle.year,
+    firstRegistrationDate: vehicle.firstRegistrationDate,
+    vin: vehicle.vin,
+    currentMileage: vehicle.currentMileage,
+    notes: vehicle.notes,
+    purchaseDate: vehicle.purchaseDate,
+    purchasePrice: vehicle.purchasePrice ?? "",
+  };
+}
+
 export function createEmptyVehicleForm(): VehicleFormData {
   return {
-    photoUrl: null,
     licensePlate: "",
     brand: "",
     model: "",
+    version: "",
     year: "",
+    firstRegistrationDate: null,
     vin: "",
-    color: "",
-    fuel: "diesel",
-    transmission: "automatic",
-    seats: "",
     currentMileage: "",
-    status: "available",
-    deadlines: {
-      insurance: null,
-      roadTax: null,
-      inspection: null,
-      nccLicence: null,
-      other: null,
-    },
-    maintenance: {
-      lastEngineService: null,
-      nextEngineService: null,
-      gearboxService: null,
-      brakeService: null,
-      battery: null,
-      other: null,
-    },
-    tires: {
-      season: "all_season",
-      replacementDate: null,
-      replacementMileage: null,
-    },
-    documents: [],
-    costs: [],
     notes: "",
+    purchaseDate: null,
+    purchasePrice: "",
+  };
+}
+
+export function applyMileageUpdate(vehicle: Vehicle, mileage: number): Vehicle {
+  const now = new Date().toISOString();
+  const today = now.split("T")[0];
+  return {
+    ...vehicle,
+    currentMileage: mileage,
+    lastMileageUpdateDate: today,
+    updatedAt: now,
+    history: appendHistory(vehicle, {
+      type: "mileage_update",
+      description: `Mileage updated to ${mileage.toLocaleString("it-IT")} km`,
+      timestamp: now,
+    }),
   };
 }

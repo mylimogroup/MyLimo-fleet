@@ -4,16 +4,24 @@ export const MAINTENANCE_CATEGORIES: {
   value: MaintenanceCategory;
   label: string;
 }[] = [
+  { value: "scheduled_service", label: "Scheduled Service" },
   { value: "oil_change", label: "Oil Change" },
-  { value: "inspection", label: "Inspection" },
+  {
+    value: "automatic_transmission_service",
+    label: "Automatic Transmission Service",
+  },
+  { value: "tire_replacement", label: "Tire Replacement" },
+  { value: "tire_rotation", label: "Tire Rotation" },
   { value: "brakes", label: "Brakes" },
-  { value: "tyres", label: "Tyres" },
-  { value: "insurance", label: "Insurance" },
-  { value: "road_tax", label: "Road Tax" },
-  { value: "mot", label: "MOT" },
   { value: "battery", label: "Battery" },
   { value: "air_conditioning", label: "Air Conditioning" },
-  { value: "unexpected_repair", label: "Unexpected Repair" },
+  { value: "mechanical_repair", label: "Mechanical Repair" },
+  { value: "bodywork", label: "Bodywork" },
+  { value: "other", label: "Other" },
 ];
 
-export const OIL_SERVICE_INTERVAL_KM = 15000;
+export const TIRE_ROTATION_INTERVALS = [
+  { value: 10000, label: "10,000 km" },
+  { value: 12000, label: "12,000 km" },
+  { value: 15000, label: "15,000 km" },
+] as const;

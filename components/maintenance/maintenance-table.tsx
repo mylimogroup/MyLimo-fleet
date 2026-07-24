@@ -10,8 +10,6 @@ import {
 } from "@/lib/maintenance/utils";
 import { AlertBadges } from "@/components/ui/alert-badges";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ExpirationCell } from "@/components/ui/expiration-cell";
-import { MaintenanceStatusBadge } from "@/components/maintenance/maintenance-status-badge";
 
 interface MaintenanceTableProps {
   records: MaintenanceListItem[];
@@ -43,21 +41,18 @@ export function MaintenanceTable({
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1200px]">
+        <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-b border-border bg-background/50">
               {[
                 "Vehicle",
                 "Plate",
                 "Type",
-                "Status",
                 "Workshop",
-                "Scheduled",
-                "Completed",
+                "Date",
                 "Mileage",
-                "Est. Cost",
-                "Actual",
-                "Next Service",
+                "Labor",
+                "Total",
                 "Alerts",
                 "Actions",
               ].map((col) => (
@@ -97,35 +92,20 @@ export function MaintenanceTable({
                   <td className="px-3 py-3 text-sm">
                     {getCategoryLabel(record.category)}
                   </td>
-                  <td className="px-3 py-3">
-                    <MaintenanceStatusBadge status={record.status} />
-                  </td>
                   <td className="px-3 py-3 text-sm">{record.workshop}</td>
                   <td className="px-3 py-3 text-sm whitespace-nowrap">
-                    {formatDate(record.scheduledDate)}
-                  </td>
-                  <td className="px-3 py-3 text-sm whitespace-nowrap">
-                    {record.completedDate
-                      ? formatDate(record.completedDate)
-                      : "—"}
+                    {formatDate(record.completedDate)}
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums whitespace-nowrap">
                     {formatMileage(record.mileage)}
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums whitespace-nowrap">
-                    {formatCurrency(record.estimatedCost)}
-                  </td>
-                  <td className="px-3 py-3 text-sm tabular-nums whitespace-nowrap">
-                    {record.totalCost > 0
-                      ? formatCurrency(record.totalCost)
+                    {record.labourCost > 0
+                      ? formatCurrency(record.labourCost)
                       : "—"}
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    {record.nextServiceDate ? (
-                      <ExpirationCell date={record.nextServiceDate} />
-                    ) : (
-                      <span className="text-sm text-muted">—</span>
-                    )}
+                  <td className="px-3 py-3 text-sm tabular-nums whitespace-nowrap">
+                    {formatCurrency(record.totalCost)}
                   </td>
                   <td className="px-3 py-3">
                     <AlertBadges alerts={rowAlerts} max={2} />
@@ -134,7 +114,7 @@ export function MaintenanceTable({
                     <div className="flex items-center justify-end gap-1">
                       <Link
                         href={`/maintenance/${record.vehicleId}`}
-                        aria-label="View vehicle timeline"
+                        aria-label="View vehicle maintenance"
                         className="rounded-lg p-2 text-muted transition-colors hover:bg-background hover:text-foreground"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

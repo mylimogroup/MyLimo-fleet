@@ -1,37 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import type { VehicleListItem } from "@/lib/types";
 import {
   formatDate,
   formatMileage,
-  getDeadlineUrgency,
 } from "@/lib/vehicles/utils";
 import { Badge } from "@/components/ui/badge";
-import { VehicleStatusBadge } from "@/components/vehicles/vehicle-status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface VehicleTableProps {
   vehicles: VehicleListItem[];
-  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-}
-
-function VehiclePhoto({ photoUrl }: { photoUrl: string | null }) {
-  if (photoUrl) {
-    return (
-      <div className="h-10 w-14 overflow-hidden rounded-lg border border-border bg-background">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-10 w-14 items-center justify-center rounded-lg border border-border bg-background text-muted">
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a49.902 49.902 0 0 0-.244-3.716 3.05 3.05 0 0 0-2.12-2.136 47.664 47.664 0 0 0-8.838 0 3.05 3.05 0 0 0-2.12 2.136 49.903 49.903 0 0 0-.244 3.716c-.039.62.469 1.124 1.09 1.124H21" />
-      </svg>
-    </div>
-  );
 }
 
 function DeadlineCell({
@@ -43,70 +23,80 @@ function DeadlineCell({
     return <span className="text-sm text-muted">—</span>;
   }
 
-  const urgency = getDeadlineUrgency(deadline.daysRemaining);
   const variant =
-    urgency === "danger" ? "danger" : urgency === "warning" ? "warning" : "default";
+    deadline.urgency === "overdue" || deadline.urgency === "urgent"
+      ? "danger"
+      : deadline.urgency === "approaching"
+        ? "warning"
+        : "default";
 
   return (
     <div>
-      <p className="text-sm font-medium">{deadline.type}</p>
-      <div className="mt-0.5 flex items-center gap-2">
-        <span className="text-xs text-muted">{formatDate(deadline.date)}</span>
+      <p className="text-sm font-medium">{deadline.label}</p>
+      <div className="mt-0.5 flex flex-wrap items-center gap-2">
+        {deadline.dueDate && (
+          <span className="text-xs text-muted">
+            {formatDate(deadline.dueDate)}
+          </span>
+        )}
+        {deadline.targetMileage !== null && (
+          <span className="text-xs text-muted tabular-nums">
+            {deadline.targetMileage.toLocaleString("it-IT")} km
+          </span>
+        )}
         <Badge variant={variant}>
-          {deadline.daysRemaining <= 0
+          {deadline.urgency === "overdue"
             ? "Overdue"
-            : `${deadline.daysRemaining}d`}
+            : deadline.remainingKm !== null && deadline.remainingKm <= 1000
+              ? `${deadline.remainingKm.toLocaleString("it-IT")} km`
+              : deadline.daysRemaining !== null
+                ? `${deadline.daysRemaining}d`
+                : deadline.urgency}
         </Badge>
       </div>
     </div>
   );
 }
 
-export function VehicleTable({ vehicles, onEdit, onDelete }: VehicleTableProps) {
+export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
   if (vehicles.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card px-6 py-16 text-center shadow-sm">
-        <svg className="mx-auto h-12 w-12 text-muted/40" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a49.902 49.902 0 0 0-.244-3.716 3.05 3.05 0 0 0-2.12-2.136 47.664 47.664 0 0 0-8.838 0 3.05 3.05 0 0 0-2.12 2.136 49.903 49.903 0 0 0-.244 3.716c-.039.62.469 1.124 1.09 1.124H21" />
-        </svg>
-        <p className="mt-4 text-sm font-medium">No vehicles found</p>
-        <p className="mt-1 text-sm text-muted">
-          Try adjusting your search or filters
-        </p>
-      </div>
+      <EmptyState
+        icon={
+          <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a49.902 49.902 0 0 0-.244-3.716 3.05 3.05 0 0 0-2.12-2.136 47.664 47.664 0 0 0-8.838 0 3.05 3.05 0 0 0-2.12 2.136 49.903 49.903 0 0 0-.244 3.716c-.039.62.469 1.124 1.09 1.124H21" />
+          </svg>
+        }
+        title="No vehicles found"
+        description="Try adjusting your search or filters"
+      />
     );
   }
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b border-border bg-background/50">
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Photo
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                License Plate
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Brand
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Model
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Current KM
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Status
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted">
-                Next Deadline
-              </th>
-              <th className="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-muted">
-                Actions
-              </th>
+              {[
+                "License Plate",
+                "Brand",
+                "Model",
+                "Version",
+                "Current KM",
+                "Next Deadline",
+                "Actions",
+              ].map((col) => (
+                <th
+                  key={col}
+                  className={`px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted ${
+                    col === "Actions" ? "text-right" : "text-left"
+                  }`}
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -116,36 +106,36 @@ export function VehicleTable({ vehicles, onEdit, onDelete }: VehicleTableProps) 
                 className="transition-colors hover:bg-background/40"
               >
                 <td className="px-4 py-3">
-                  <VehiclePhoto photoUrl={vehicle.photoUrl} />
-                </td>
-                <td className="px-4 py-3">
-                  <span className="font-mono text-sm font-semibold tracking-wide">
+                  <Link
+                    href={`/vehicles/${vehicle.id}`}
+                    className="font-mono text-sm font-semibold tracking-wide hover:text-primary"
+                  >
                     {vehicle.licensePlate}
-                  </span>
+                  </Link>
                 </td>
                 <td className="px-4 py-3 text-sm">{vehicle.brand}</td>
                 <td className="px-4 py-3 text-sm">{vehicle.model}</td>
+                <td className="px-4 py-3 text-sm text-muted">
+                  {vehicle.version || "—"}
+                </td>
                 <td className="px-4 py-3 text-sm tabular-nums">
                   {formatMileage(vehicle.currentMileage)}
-                </td>
-                <td className="px-4 py-3">
-                  <VehicleStatusBadge status={vehicle.status} />
                 </td>
                 <td className="px-4 py-3">
                   <DeadlineCell deadline={vehicle.nextDeadline} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(vehicle.id)}
-                      aria-label={`Edit ${vehicle.licensePlate}`}
+                    <Link
+                      href={`/vehicles/${vehicle.id}`}
+                      aria-label={`View ${vehicle.licensePlate}`}
                       className="rounded-lg p-2 text-muted transition-colors hover:bg-background hover:text-foreground"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                       </svg>
-                    </button>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => onDelete(vehicle.id)}

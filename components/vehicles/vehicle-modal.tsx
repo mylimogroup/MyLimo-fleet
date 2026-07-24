@@ -4,25 +4,9 @@ import { useState } from "react";
 import type { VehicleFormData } from "@/lib/types";
 import { createEmptyVehicleForm } from "@/lib/vehicles/repository";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { Tabs } from "@/components/ui/tabs";
-import { CostsTab } from "@/components/vehicles/form/costs-tab";
-import { DeadlinesTab } from "@/components/vehicles/form/deadlines-tab";
-import { DocumentsTab } from "@/components/vehicles/form/documents-tab";
-import { GeneralTab } from "@/components/vehicles/form/general-tab";
-import { MaintenanceTab } from "@/components/vehicles/form/maintenance-tab";
-import { NotesTab } from "@/components/vehicles/form/notes-tab";
-import { TiresTab } from "@/components/vehicles/form/tires-tab";
-
-const MODAL_TABS = [
-  { id: "general", label: "General" },
-  { id: "deadlines", label: "Deadlines" },
-  { id: "maintenance", label: "Maintenance" },
-  { id: "tires", label: "Tires" },
-  { id: "documents", label: "Documents" },
-  { id: "costs", label: "Costs" },
-  { id: "notes", label: "Notes" },
-];
+import { Textarea } from "@/components/ui/textarea";
 
 interface VehicleModalProps {
   open: boolean;
@@ -39,42 +23,55 @@ export function VehicleModal({
   initialData,
   mode = "create",
 }: VehicleModalProps) {
-  const [activeTab, setActiveTab] = useState("general");
-  const [formData, setFormData] = useState<VehicleFormData>(
-    initialData ?? createEmptyVehicleForm()
+  return (
+    <VehicleModalInner
+      key={mode === "edit" ? "edit" : "new"}
+      open={open}
+      onClose={onClose}
+      onSave={onSave}
+      initialData={initialData ?? createEmptyVehicleForm()}
+      mode={mode}
+    />
   );
+}
+
+function VehicleModalInner({
+  open,
+  onClose,
+  onSave,
+  initialData,
+  mode,
+}: Required<Pick<VehicleModalProps, "open" | "onClose" | "onSave" | "mode">> & {
+  initialData: VehicleFormData;
+}) {
+  const [formData, setFormData] = useState(initialData);
 
   const handleChange = (partial: Partial<VehicleFormData>) => {
     setFormData((prev) => ({ ...prev, ...partial }));
   };
 
   const handleSave = () => {
-    if (!formData.licensePlate.trim() || !formData.brand.trim() || !formData.model.trim()) {
-      setActiveTab("general");
+    if (
+      !formData.licensePlate.trim() ||
+      !formData.brand.trim() ||
+      !formData.model.trim()
+    ) {
       return;
     }
     onSave(formData);
-    setFormData(createEmptyVehicleForm());
-    setActiveTab("general");
-    onClose();
-  };
-
-  const handleClose = () => {
-    setFormData(initialData ?? createEmptyVehicleForm());
-    setActiveTab("general");
     onClose();
   };
 
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       title={mode === "create" ? "Add Vehicle" : "Edit Vehicle"}
-      subtitle="Complete all relevant sections for accurate fleet records"
-      size="xl"
+      subtitle="Master identification data"
+      size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={handleSave}>
@@ -83,30 +80,95 @@ export function VehicleModal({
         </>
       }
     >
-      <Tabs tabs={MODAL_TABS} activeTab={activeTab} onChange={setActiveTab} />
-
-      <div className="mt-6">
-        {activeTab === "general" && (
-          <GeneralTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "deadlines" && (
-          <DeadlinesTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "maintenance" && (
-          <MaintenanceTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "tires" && (
-          <TiresTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "documents" && (
-          <DocumentsTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "costs" && (
-          <CostsTab data={formData} onChange={handleChange} />
-        )}
-        {activeTab === "notes" && (
-          <NotesTab data={formData} onChange={handleChange} />
-        )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="License Plate"
+          value={formData.licensePlate}
+          onChange={(e) => handleChange({ licensePlate: e.target.value })}
+          placeholder="MI-LM 401"
+          required
+        />
+        <Input
+          label="Brand"
+          value={formData.brand}
+          onChange={(e) => handleChange({ brand: e.target.value })}
+          placeholder="Mercedes-Benz"
+          required
+        />
+        <Input
+          label="Model"
+          value={formData.model}
+          onChange={(e) => handleChange({ model: e.target.value })}
+          placeholder="S-Class"
+          required
+        />
+        <Input
+          label="Version"
+          value={formData.version}
+          onChange={(e) => handleChange({ version: e.target.value })}
+          placeholder="S 350 d L"
+        />
+        <Input
+          label="Year"
+          type="number"
+          value={formData.year}
+          onChange={(e) =>
+            handleChange({ year: e.target.value ? Number(e.target.value) : "" })
+          }
+          min={1990}
+          max={2030}
+        />
+        <Input
+          label="First Registration Date"
+          type="date"
+          value={formData.firstRegistrationDate ?? ""}
+          onChange={(e) =>
+            handleChange({ firstRegistrationDate: e.target.value || null })
+          }
+        />
+        <Input
+          label="VIN / Chassis Number"
+          value={formData.vin}
+          onChange={(e) => handleChange({ vin: e.target.value })}
+          className="sm:col-span-2"
+        />
+        <Input
+          label="Current Mileage"
+          type="number"
+          value={formData.currentMileage}
+          onChange={(e) =>
+            handleChange({
+              currentMileage: e.target.value ? Number(e.target.value) : "",
+            })
+          }
+          min={0}
+        />
+        <Input
+          label="Purchase Date"
+          type="date"
+          value={formData.purchaseDate ?? ""}
+          onChange={(e) =>
+            handleChange({ purchaseDate: e.target.value || null })
+          }
+        />
+        <Input
+          label="Purchase Price (€)"
+          type="number"
+          value={formData.purchasePrice}
+          onChange={(e) =>
+            handleChange({
+              purchasePrice: e.target.value ? Number(e.target.value) : "",
+            })
+          }
+          min={0}
+          className="sm:col-span-2"
+        />
+        <Textarea
+          label="Notes"
+          value={formData.notes}
+          onChange={(e) => handleChange({ notes: e.target.value })}
+          className="sm:col-span-2"
+        />
       </div>
     </Modal>
   );

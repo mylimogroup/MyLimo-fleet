@@ -1,7 +1,4 @@
-import type {
-  MaintenanceCategory,
-  MaintenanceStatus,
-} from "@/lib/types";
+import type { MaintenanceCategory } from "@/lib/types";
 import { MAINTENANCE_CATEGORIES } from "@/lib/maintenance/constants";
 
 export function formatDate(date: string): string {
@@ -38,23 +35,6 @@ const categoryLabels = Object.fromEntries(
 
 export function getCategoryLabel(category: MaintenanceCategory): string {
   return categoryLabels[category] ?? category;
-}
-
-const statusLabels: Record<MaintenanceStatus, string> = {
-  scheduled: "Scheduled",
-  in_progress: "In Progress",
-  completed: "Completed",
-  overdue: "Overdue",
-  cancelled: "Cancelled",
-};
-
-export function getStatusLabel(status: MaintenanceStatus): string {
-  return statusLabels[status];
-}
-
-export function isWithinDays(date: string, days: number): boolean {
-  const remaining = daysUntil(date);
-  return remaining >= 0 && remaining <= days;
 }
 
 export function isCurrentMonth(dateStr: string): boolean {

@@ -1,11 +1,3 @@
-export type VehicleStatus = "available" | "in_use" | "maintenance";
-
-export type FuelType = "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
-
-export type TransmissionType = "automatic" | "manual";
-
-export type TireSeason = "summer" | "winter" | "all_season";
-
 export type ActivityType =
   | "mileage_update"
   | "maintenance"
@@ -13,35 +5,22 @@ export type ActivityType =
   | "deadline"
   | "assignment";
 
-export interface VehicleDeadlines {
-  insurance: string | null;
-  roadTax: string | null;
-  inspection: string | null;
-  nccLicence: string | null;
-  other: string | null;
-}
-
-export interface VehicleMaintenance {
-  lastEngineService: string | null;
-  nextEngineService: string | null;
-  gearboxService: string | null;
-  brakeService: string | null;
-  battery: string | null;
-  other: string | null;
-}
-
-export interface VehicleTires {
-  season: TireSeason;
-  replacementDate: string | null;
-  replacementMileage: number | null;
-}
+export type VehicleDocumentCategory =
+  | "registration_certificate"
+  | "insurance"
+  | "vehicle_inspection"
+  | "road_tax"
+  | "leasing_contract";
 
 export interface VehicleDocument {
   id: string;
-  name: string;
-  type: "pdf" | "image";
-  url: string;
-  uploadedAt: string;
+  category: VehicleDocumentCategory;
+  issueDate: string | null;
+  expirationDate: string | null;
+  pdfUrl: string | null;
+  pdfName: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface VehicleCostEntry {
@@ -52,64 +31,124 @@ export interface VehicleCostEntry {
   cost: number;
 }
 
+export type VehicleHistoryType =
+  | "mileage_update"
+  | "vehicle_created"
+  | "vehicle_updated"
+  | "document_added"
+  | "document_updated"
+  | "document_deleted"
+  | "cost_added"
+  | "maintenance"
+  | "insurance_renewal"
+  | "road_tax_payment"
+  | "inspection"
+  | "tire_replacement"
+  | "tire_rotation"
+  | "automatic_transmission_service"
+  | "vehicle_purchase";
+
+export type VehicleDeadlineCategory =
+  | "insurance"
+  | "road_tax"
+  | "vehicle_inspection"
+  | "scheduled_service"
+  | "oil_change"
+  | "automatic_transmission_service"
+  | "tire_rotation"
+  | "tire_replacement"
+  | "brakes"
+  | "battery"
+  | "custom";
+
+export type DeadlineUrgency = "overdue" | "urgent" | "approaching" | "normal";
+
+export interface VehicleDeadline {
+  id: string;
+  category: VehicleDeadlineCategory;
+  label: string;
+  dueDate: string | null;
+  targetMileage: number | null;
+  sourceMaintenanceId: string | null;
+  sourceDocumentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComputedDeadline extends VehicleDeadline {
+  urgency: DeadlineUrgency;
+  daysRemaining: number | null;
+  remainingKm: number | null;
+  currentMileage: number;
+  isAdministrative: boolean;
+}
+
+export interface VehicleHistoryEntry {
+  id: string;
+  type: VehicleHistoryType;
+  description: string;
+  timestamp: string;
+}
+
 export interface Vehicle {
   id: string;
-  photoUrl: string | null;
   licensePlate: string;
   brand: string;
   model: string;
+  version: string;
   year: number;
+  firstRegistrationDate: string | null;
   vin: string;
-  color: string;
-  fuel: FuelType;
-  transmission: TransmissionType;
-  seats: number;
   currentMileage: number;
-  status: VehicleStatus;
-  deadlines: VehicleDeadlines;
-  maintenance: VehicleMaintenance;
-  tires: VehicleTires;
+  lastMileageUpdateDate: string | null;
+  notes: string;
+  purchaseDate: string | null;
+  purchasePrice: number | null;
   documents: VehicleDocument[];
   costs: VehicleCostEntry[];
-  notes: string;
+  deadlines: VehicleDeadline[];
+  history: VehicleHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface VehicleListItem {
   id: string;
-  photoUrl: string | null;
   licensePlate: string;
   brand: string;
   model: string;
+  version: string;
   currentMileage: number;
-  status: VehicleStatus;
   nextDeadline: {
-    type: string;
-    date: string;
-    daysRemaining: number;
+    label: string;
+    urgency: DeadlineUrgency;
+    dueDate: string | null;
+    targetMileage: number | null;
+    daysRemaining: number | null;
+    remainingKm: number | null;
   } | null;
 }
 
 export interface VehicleFormData {
-  photoUrl: string | null;
   licensePlate: string;
   brand: string;
   model: string;
+  version: string;
   year: number | "";
+  firstRegistrationDate: string | null;
   vin: string;
-  color: string;
-  fuel: FuelType;
-  transmission: TransmissionType;
-  seats: number | "";
   currentMileage: number | "";
-  status: VehicleStatus;
-  deadlines: VehicleDeadlines;
-  maintenance: VehicleMaintenance;
-  tires: VehicleTires;
-  documents: VehicleDocument[];
-  costs: VehicleCostEntry[];
   notes: string;
+  purchaseDate: string | null;
+  purchasePrice: number | "";
+}
+
+export interface VehicleDocumentFormData {
+  category: VehicleDocumentCategory;
+  issueDate: string | null;
+  expirationDate: string | null;
+  pdfUrl: string | null;
+  pdfName: string | null;
 }
 
 export interface Deadline {
@@ -146,7 +185,6 @@ export interface FleetStats {
 }
 
 export interface VehicleFilters {
-  status?: VehicleStatus | "all";
   brand?: string;
   search?: string;
 }
@@ -275,53 +313,56 @@ export interface DriverFilters {
 // ─── Maintenance ───────────────────────────────────────────────────────────
 
 export type MaintenanceCategory =
+  | "scheduled_service"
   | "oil_change"
-  | "inspection"
+  | "automatic_transmission_service"
+  | "tire_replacement"
+  | "tire_rotation"
   | "brakes"
-  | "tyres"
-  | "insurance"
-  | "road_tax"
-  | "mot"
   | "battery"
   | "air_conditioning"
-  | "unexpected_repair";
+  | "mechanical_repair"
+  | "bodywork"
+  | "other";
 
-export type MaintenanceStatus =
-  | "scheduled"
-  | "in_progress"
-  | "completed"
-  | "overdue"
-  | "cancelled";
+export type TireType = "summer" | "winter" | "all_season";
 
-export type MaintenanceAttachmentType = "invoice" | "photo" | "pdf";
+export interface TireDetails {
+  tireType: TireType;
+  brand: string;
+  model: string;
+  size: string;
+  installationDate: string;
+  installationMileage: number;
+}
 
-export interface MaintenanceAttachment {
-  id: string;
-  name: string;
-  type: MaintenanceAttachmentType;
-  url: string;
-  uploadedAt: string;
+export interface MaintenanceRecurrence {
+  enabled: boolean;
+  repeatEveryKm: number | null;
+  repeatEveryMonths: number | null;
+}
+
+export interface TireRotationReminder {
+  enabled: boolean;
+  intervalKm: number;
 }
 
 export interface MaintenanceRecord {
   id: string;
   vehicleId: string;
   category: MaintenanceCategory;
-  status: MaintenanceStatus;
   description: string;
   workshop: string;
-  invoiceNumber: string | null;
-  scheduledDate: string;
-  completedDate: string | null;
+  completedDate: string;
   mileage: number;
   labourCost: number;
-  partsCost: number;
   totalCost: number;
-  estimatedCost: number;
-  nextServiceDate: string | null;
-  nextServiceMileage: number | null;
   notes: string;
-  attachments: MaintenanceAttachment[];
+  invoicePdfUrl: string | null;
+  invoicePdfName: string | null;
+  tireDetails: TireDetails | null;
+  recurrence: MaintenanceRecurrence | null;
+  generatedDeadlineIds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -333,64 +374,60 @@ export interface MaintenanceListItem {
   vehicleModel: string;
   licensePlate: string;
   category: MaintenanceCategory;
-  status: MaintenanceStatus;
   workshop: string;
-  scheduledDate: string;
-  completedDate: string | null;
+  completedDate: string;
   mileage: number;
-  estimatedCost: number;
+  labourCost: number;
   totalCost: number;
-  nextServiceDate: string | null;
 }
 
 export interface MaintenanceFormData {
   vehicleId: string;
   category: MaintenanceCategory;
-  status: MaintenanceStatus;
   description: string;
   workshop: string;
-  invoiceNumber: string;
-  scheduledDate: string;
-  completedDate: string | null;
+  completedDate: string;
   mileage: number | "";
   labourCost: number | "";
-  partsCost: number | "";
-  estimatedCost: number | "";
-  nextServiceDate: string | null;
-  nextServiceMileage: number | null;
+  totalCost: number | "";
   notes: string;
-  attachments: MaintenanceAttachment[];
+  invoicePdfUrl: string | null;
+  invoicePdfName: string | null;
+  tireDetails: TireDetails | null;
+  recurrence: MaintenanceRecurrence;
+  tireRotationReminder: TireRotationReminder;
 }
 
 export interface MaintenanceKPIs {
-  vehiclesInMaintenance: number;
-  upcomingServices: number;
-  overdueMaintenance: number;
+  vehiclesRequiringAttention: number;
+  upcomingMaintenance: number;
+  overdueDeadlines: number;
   monthlyMaintenanceCosts: number;
 }
 
 export type MaintenanceAlertType =
-  | "service_overdue"
-  | "insurance_expiring"
-  | "road_tax_expiring"
-  | "inspection_expiring"
-  | "oil_service_due";
+  | "insurance"
+  | "road_tax"
+  | "vehicle_inspection"
+  | "maintenance";
 
 export interface MaintenanceAlert {
   vehicleId: string;
   licensePlate: string;
   type: MaintenanceAlertType;
+  label: string;
   message: string;
-  severity: "warning" | "danger";
+  urgency: DeadlineUrgency;
   dueDate?: string;
-  dueMileage?: number;
+  targetMileage?: number;
+  daysRemaining?: number;
+  remainingKm?: number;
 }
 
 export interface MaintenanceFilters {
   search?: string;
   brand?: string;
   category?: MaintenanceCategory | "all";
-  status?: MaintenanceStatus | "all";
   dateFrom?: string;
   dateTo?: string;
 }

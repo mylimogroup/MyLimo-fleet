@@ -1,6 +1,6 @@
 "use client";
 
-import type { MaintenanceCategory, MaintenanceStatus } from "@/lib/types";
+import type { MaintenanceCategory } from "@/lib/types";
 import { MAINTENANCE_CATEGORIES } from "@/lib/maintenance/constants";
 import { vehicleBrands } from "@/lib/vehicles/data";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,6 @@ interface MaintenanceToolbarProps {
   onBrandFilterChange: (value: string) => void;
   categoryFilter: MaintenanceCategory | "all";
   onCategoryFilterChange: (value: MaintenanceCategory | "all") => void;
-  statusFilter: MaintenanceStatus | "all";
-  onStatusFilterChange: (value: MaintenanceStatus | "all") => void;
   dateFrom: string;
   onDateFromChange: (value: string) => void;
   dateTo: string;
@@ -33,8 +31,6 @@ export function MaintenanceToolbar({
   onBrandFilterChange,
   categoryFilter,
   onCategoryFilterChange,
-  statusFilter,
-  onStatusFilterChange,
   dateFrom,
   onDateFromChange,
   dateTo,
@@ -47,7 +43,6 @@ export function MaintenanceToolbar({
     search !== "" ||
     brandFilter !== "" ||
     categoryFilter !== "all" ||
-    statusFilter !== "all" ||
     dateFrom !== "" ||
     dateTo !== "";
 
@@ -91,22 +86,6 @@ export function MaintenanceToolbar({
               aria-label="Filter by maintenance type"
               className="w-auto min-w-[160px]"
             />
-            <Select
-              value={statusFilter}
-              onChange={(e) =>
-                onStatusFilterChange(e.target.value as MaintenanceStatus | "all")
-              }
-              options={[
-                { value: "all", label: "All statuses" },
-                { value: "scheduled", label: "Scheduled" },
-                { value: "in_progress", label: "In Progress" },
-                { value: "completed", label: "Completed" },
-                { value: "overdue", label: "Overdue" },
-                { value: "cancelled", label: "Cancelled" },
-              ]}
-              aria-label="Filter by status"
-              className="w-auto min-w-[140px]"
-            />
           </div>
 
           <div className="flex flex-wrap items-end gap-2">
@@ -131,7 +110,6 @@ export function MaintenanceToolbar({
                   onSearchChange("");
                   onBrandFilterChange("");
                   onCategoryFilterChange("all");
-                  onStatusFilterChange("all");
                   onDateFromChange("");
                   onDateToChange("");
                 }}
@@ -147,12 +125,12 @@ export function MaintenanceToolbar({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Add Record
+          Log Maintenance
         </Button>
       </div>
 
       <p className="mt-3 text-xs text-muted">
-        Showing {filteredCount} of {totalCount} records
+        Showing {filteredCount} of {totalCount} completed operations
       </p>
     </div>
   );

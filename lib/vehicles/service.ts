@@ -1,10 +1,22 @@
 import { vehicles } from "@/lib/vehicles/data";
 import {
+  applyMileageUpdate,
   formDataToVehicle,
+  vehicleToFormData,
   vehicleToListItem,
   type VehicleRepository,
 } from "@/lib/vehicles/repository";
+import { getDocumentCategoryLabel } from "@/lib/vehicles/documents";
+import {
+  buildDeadlinesFromMaintenance,
+  maintenanceCategoryToDeadlineCategory,
+  maintenanceHistoryType,
+  mergeVehicleDeadlines,
+} from "@/lib/vehicles/deadlines";
+import { getCategoryLabel } from "@/lib/maintenance/utils";
 import type {
+  MaintenanceFormData,
+  MaintenanceRecord,
   Vehicle,
   VehicleFilters,
   VehicleFormData,
@@ -13,6 +25,47 @@ import type {
 
 let vehicleStore = [...vehicles];
 
+export function getVehicleStore(): Vehicle[] {
+  return vehicleStore;
+}
+
+export function applyMaintenanceCompletion(
+  record: MaintenanceRecord,
+  formData: MaintenanceFormData
+): string[] {
+  const index = vehicleStore.findIndex((v) => v.id === record.vehicleId);
+  if (index === -1) return [];
+
+  const vehicle = vehicleStore[index];
+  const newDeadlines = buildDeadlinesFromMaintenance(formData, record.id);
+  const completedCategory = maintenanceCategoryToDeadlineCategory(
+    record.category
+  );
+  const updatedDeadlines = mergeVehicleDeadlines(
+    vehicle.deadlines,
+    newDeadlines,
+    completedCategory
+  );
+
+  const now = new Date().toISOString();
+  vehicleStore[index] = {
+    ...vehicle,
+    deadlines: updatedDeadlines,
+    updatedAt: now,
+    history: [
+      {
+        id: crypto.randomUUID(),
+        type: maintenanceHistoryType(record.category),
+        description: `${getCategoryLabel(record.category)} completed at ${record.mileage.toLocaleString("it-IT")} km — ${record.workshop}`,
+        timestamp: now,
+      },
+      ...vehicle.history,
+    ],
+  };
+
+  return newDeadlines.map((d) => d.id);
+}
+
 function applyFilters(
   items: VehicleListItem[],
   filters?: VehicleFilters
@@ -20,15 +73,11 @@ function applyFilters(
   if (!filters) return items;
 
   return items.filter((item) => {
-    if (filters.status && filters.status !== "all" && item.status !== filters.status) {
-      return false;
-    }
-    if (filters.brand && item.brand !== filters.brand) {
-      return false;
-    }
+    if (filters.brand && item.brand !== filters.brand) return false;
     if (filters.search) {
       const q = filters.search.toLowerCase();
-      const haystack = `${item.licensePlate} ${item.brand} ${item.model}`.toLowerCase();
+      const haystack =
+        `${item.licensePlate} ${item.brand} ${item.model} ${item.version}`.toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     return true;
@@ -57,33 +106,96 @@ export class MockVehicleRepository implements VehicleRepository {
 
     const existing = vehicleStore[index];
     const merged = formDataToVehicle(
-      {
-        photoUrl: data.photoUrl ?? existing.photoUrl,
-        licensePlate: data.licensePlate ?? existing.licensePlate,
-        brand: data.brand ?? existing.brand,
-        model: data.model ?? existing.model,
-        year: data.year ?? existing.year,
-        vin: data.vin ?? existing.vin,
-        color: data.color ?? existing.color,
-        fuel: data.fuel ?? existing.fuel,
-        transmission: data.transmission ?? existing.transmission,
-        seats: data.seats ?? existing.seats,
-        currentMileage: data.currentMileage ?? existing.currentMileage,
-        status: data.status ?? existing.status,
-        deadlines: data.deadlines ?? existing.deadlines,
-        maintenance: data.maintenance ?? existing.maintenance,
-        tires: data.tires ?? existing.tires,
-        documents: data.documents ?? existing.documents,
-        costs: data.costs ?? existing.costs,
-        notes: data.notes ?? existing.notes,
-      },
-      id
+      { ...vehicleToFormData(existing), ...data },
+      id,
+      existing
     );
     merged.createdAt = existing.createdAt;
-    merged.updatedAt = new Date().toISOString();
+    merged.documents = existing.documents;
+    merged.costs = existing.costs;
+    merged.deadlines = existing.deadlines;
+    merged.history = merged.history;
+    merged.lastMileageUpdateDate = existing.lastMileageUpdateDate;
 
     vehicleStore[index] = merged;
     return merged;
+  }
+
+  async updateMileage(id: string, mileage: number): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === id);
+    if (index === -1) throw new Error(`Vehicle ${id} not found`);
+
+    const updated = applyMileageUpdate(vehicleStore[index], mileage);
+    vehicleStore[index] = updated;
+    return updated;
+  }
+
+  async updateDocuments(
+    id: string,
+    documents: Vehicle["documents"]
+  ): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === id);
+    if (index === -1) throw new Error(`Vehicle ${id} not found`);
+
+    const existing = vehicleStore[index];
+    const now = new Date().toISOString();
+    const historyEntries: Vehicle["history"] = [];
+
+    for (const doc of documents) {
+      const prev = existing.documents.find((d) => d.id === doc.id);
+      if (!prev) {
+        historyEntries.push({
+          id: crypto.randomUUID(),
+          type: "document_added",
+          description: `Document added: ${getDocumentCategoryLabel(doc.category)}`,
+          timestamp: now,
+        });
+      } else if (
+        prev.category !== doc.category ||
+        prev.issueDate !== doc.issueDate ||
+        prev.expirationDate !== doc.expirationDate ||
+        prev.pdfUrl !== doc.pdfUrl
+      ) {
+        historyEntries.push({
+          id: crypto.randomUUID(),
+          type: "document_updated",
+          description: `Document updated: ${getDocumentCategoryLabel(doc.category)}`,
+          timestamp: now,
+        });
+      }
+    }
+
+    for (const doc of existing.documents) {
+      if (!documents.some((d) => d.id === doc.id)) {
+        historyEntries.push({
+          id: crypto.randomUUID(),
+          type: "document_deleted",
+          description: `Document removed: ${getDocumentCategoryLabel(doc.category)}`,
+          timestamp: now,
+        });
+      }
+    }
+
+    vehicleStore[index] = {
+      ...existing,
+      documents,
+      updatedAt: now,
+      history: [...historyEntries, ...existing.history],
+    };
+    return vehicleStore[index];
+  }
+
+  async updateCosts(id: string, costs: Vehicle["costs"]): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === id);
+    if (index === -1) throw new Error(`Vehicle ${id} not found`);
+
+    const now = new Date().toISOString();
+    vehicleStore[index] = {
+      ...vehicleStore[index],
+      costs,
+      updatedAt: now,
+    };
+    return vehicleStore[index];
   }
 
   async delete(id: string): Promise<void> {
@@ -91,10 +203,6 @@ export class MockVehicleRepository implements VehicleRepository {
   }
 }
 
-/**
- * Supabase-backed repository. Activate by installing @supabase/supabase-js
- * and setting environment variables.
- */
 export class SupabaseVehicleRepository implements VehicleRepository {
   async list(): Promise<VehicleListItem[]> {
     throw new Error("SupabaseVehicleRepository not yet implemented");
@@ -109,6 +217,18 @@ export class SupabaseVehicleRepository implements VehicleRepository {
   }
 
   async update(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async updateMileage(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async updateDocuments(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async updateCosts(): Promise<Vehicle> {
     throw new Error("SupabaseVehicleRepository not yet implemented");
   }
 

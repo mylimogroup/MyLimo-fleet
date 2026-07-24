@@ -1,5 +1,3 @@
-import type { VehicleStatus } from "@/lib/types";
-
 export function formatMileage(km: number): string {
   return new Intl.NumberFormat("it-IT").format(km) + " km";
 }
@@ -20,15 +18,6 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-const statusLabels: Record<VehicleStatus, string> = {
-  available: "Available",
-  in_use: "In Use",
-  maintenance: "Maintenance",
-};
-
-export function getStatusLabel(status: VehicleStatus): string {
-  return statusLabels[status];
-}
 
 export function getDeadlineUrgency(
   daysRemaining: number
@@ -36,4 +25,12 @@ export function getDeadlineUrgency(
   if (daysRemaining <= 7) return "danger";
   if (daysRemaining <= 30) return "warning";
   return "normal";
+}
+
+export function daysUntil(date: string): number {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }

@@ -35,14 +35,11 @@ export function recordToListItem(record: MaintenanceRecord): MaintenanceListItem
     vehicleModel: vehicle?.model ?? "",
     licensePlate: vehicle?.licensePlate ?? "—",
     category: record.category,
-    status: record.status,
     workshop: record.workshop,
-    scheduledDate: record.scheduledDate,
     completedDate: record.completedDate,
     mileage: record.mileage,
-    estimatedCost: record.estimatedCost,
+    labourCost: record.labourCost,
     totalCost: record.totalCost,
-    nextServiceDate: record.nextServiceDate,
   };
 }
 
@@ -52,29 +49,25 @@ export function formDataToRecord(
 ): MaintenanceRecord {
   const now = new Date().toISOString();
   const labour = typeof data.labourCost === "number" ? data.labourCost : 0;
-  const parts = typeof data.partsCost === "number" ? data.partsCost : 0;
-  const estimated =
-    typeof data.estimatedCost === "number" ? data.estimatedCost : labour + parts;
+  const total =
+    typeof data.totalCost === "number" ? data.totalCost : labour;
 
   return {
     id: id ?? crypto.randomUUID(),
     vehicleId: data.vehicleId,
     category: data.category,
-    status: data.status,
     description: data.description,
     workshop: data.workshop,
-    invoiceNumber: data.invoiceNumber || null,
-    scheduledDate: data.scheduledDate,
     completedDate: data.completedDate,
     mileage: typeof data.mileage === "number" ? data.mileage : 0,
     labourCost: labour,
-    partsCost: parts,
-    totalCost: data.status === "completed" ? labour + parts : 0,
-    estimatedCost: estimated,
-    nextServiceDate: data.nextServiceDate,
-    nextServiceMileage: data.nextServiceMileage,
+    totalCost: total,
     notes: data.notes,
-    attachments: data.attachments,
+    invoicePdfUrl: data.invoicePdfUrl,
+    invoicePdfName: data.invoicePdfName,
+    tireDetails: data.tireDetails,
+    recurrence: data.recurrence.enabled ? data.recurrence : null,
+    generatedDeadlineIds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -84,20 +77,25 @@ export function recordToFormData(record: MaintenanceRecord): MaintenanceFormData
   return {
     vehicleId: record.vehicleId,
     category: record.category,
-    status: record.status,
     description: record.description,
     workshop: record.workshop,
-    invoiceNumber: record.invoiceNumber ?? "",
-    scheduledDate: record.scheduledDate,
     completedDate: record.completedDate,
     mileage: record.mileage,
     labourCost: record.labourCost,
-    partsCost: record.partsCost,
-    estimatedCost: record.estimatedCost,
-    nextServiceDate: record.nextServiceDate,
-    nextServiceMileage: record.nextServiceMileage,
+    totalCost: record.totalCost,
     notes: record.notes,
-    attachments: record.attachments,
+    invoicePdfUrl: record.invoicePdfUrl,
+    invoicePdfName: record.invoicePdfName,
+    tireDetails: record.tireDetails,
+    recurrence: record.recurrence ?? {
+      enabled: false,
+      repeatEveryKm: null,
+      repeatEveryMonths: null,
+    },
+    tireRotationReminder: {
+      enabled: false,
+      intervalKm: 10000,
+    },
   };
 }
 
@@ -105,19 +103,24 @@ export function createEmptyMaintenanceForm(): MaintenanceFormData {
   return {
     vehicleId: "",
     category: "oil_change",
-    status: "scheduled",
     description: "",
     workshop: "",
-    invoiceNumber: "",
-    scheduledDate: new Date().toISOString().split("T")[0],
-    completedDate: null,
+    completedDate: new Date().toISOString().split("T")[0],
     mileage: "",
     labourCost: "",
-    partsCost: "",
-    estimatedCost: "",
-    nextServiceDate: null,
-    nextServiceMileage: null,
+    totalCost: "",
     notes: "",
-    attachments: [],
+    invoicePdfUrl: null,
+    invoicePdfName: null,
+    tireDetails: null,
+    recurrence: {
+      enabled: false,
+      repeatEveryKm: null,
+      repeatEveryMonths: null,
+    },
+    tireRotationReminder: {
+      enabled: false,
+      intervalKm: 10000,
+    },
   };
 }

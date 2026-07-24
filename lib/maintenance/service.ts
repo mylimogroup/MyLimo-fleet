@@ -13,41 +13,43 @@ import type {
   MaintenanceListItem,
   MaintenanceRecord,
 } from "@/lib/types";
-import { vehicles } from "@/lib/vehicles/data";
-import { isCurrentMonth, daysUntil } from "@/lib/maintenance/utils";
+import { computeAllDeadlines } from "@/lib/vehicles/deadlines";
+import { isCurrentMonth } from "@/lib/maintenance/utils";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { getVehicleStore, applyMaintenanceCompletion } from "@/lib/vehicles/service";
 
 let recordStore = [...maintenanceRecords];
 
 function computeKPIs(records: MaintenanceRecord[]): MaintenanceKPIs {
-  const vehiclesInMaintenance = vehicles.filter(
-    (v) => v.status === "maintenance"
+  const vehicles = getVehicleStore();
+  const allDeadlines = vehicles.flatMap((v) => computeAllDeadlines(v));
+
+  const vehicleIdsWithUrgent = new Set<string>();
+  for (const vehicle of vehicles) {
+    const deadlines = computeAllDeadlines(vehicle);
+    if (deadlines.some((d) => d.urgency === "overdue" || d.urgency === "urgent")) {
+      vehicleIdsWithUrgent.add(vehicle.id);
+    }
+  }
+
+  const upcomingMaintenance = allDeadlines.filter(
+    (d) =>
+      !d.isAdministrative &&
+      (d.urgency === "approaching" || d.urgency === "urgent")
   ).length;
 
-  const upcomingServices = records.filter(
-    (r) =>
-      (r.status === "scheduled" || r.status === "in_progress") &&
-      daysUntil(r.scheduledDate) >= 0 &&
-      daysUntil(r.scheduledDate) <= 30
-  ).length;
-
-  const overdueMaintenance = records.filter(
-    (r) => r.status === "overdue"
+  const overdueDeadlines = allDeadlines.filter(
+    (d) => d.urgency === "overdue"
   ).length;
 
   const monthlyMaintenanceCosts = records
-    .filter(
-      (r) =>
-        r.status === "completed" &&
-        r.completedDate &&
-        isCurrentMonth(r.completedDate)
-    )
+    .filter((r) => isCurrentMonth(r.completedDate))
     .reduce((sum, r) => sum + r.totalCost, 0);
 
   return {
-    vehiclesInMaintenance,
-    upcomingServices,
-    overdueMaintenance,
+    vehiclesRequiringAttention: vehicleIdsWithUrgent.size,
+    upcomingMaintenance,
+    overdueDeadlines,
     monthlyMaintenanceCosts,
   };
 }
@@ -62,8 +64,8 @@ export class MockMaintenanceRepository implements MaintenanceRepository {
       .filter((r) => r.vehicleId === vehicleId)
       .sort(
         (a, b) =>
-          new Date(b.scheduledDate).getTime() -
-          new Date(a.scheduledDate).getTime()
+          new Date(b.completedDate).getTime() -
+          new Date(a.completedDate).getTime()
       );
   }
 
@@ -73,6 +75,8 @@ export class MockMaintenanceRepository implements MaintenanceRepository {
 
   async create(data: MaintenanceFormData): Promise<MaintenanceRecord> {
     const record = formDataToRecord(data);
+    const deadlineIds = applyMaintenanceCompletion(record, data);
+    record.generatedDeadlineIds = deadlineIds;
     recordStore = [record, ...recordStore];
     return record;
   }
@@ -91,6 +95,7 @@ export class MockMaintenanceRepository implements MaintenanceRepository {
     );
     merged.createdAt = existing.createdAt;
     merged.updatedAt = new Date().toISOString();
+    merged.generatedDeadlineIds = existing.generatedDeadlineIds;
     recordStore[index] = merged;
     return merged;
   }
@@ -131,7 +136,7 @@ export function getMaintenanceKPIs(): MaintenanceKPIs {
 }
 
 export function getMaintenanceAlerts(): MaintenanceAlert[] {
-  return computeMaintenanceAlerts(recordStore);
+  return computeMaintenanceAlerts(getVehicleStore());
 }
 
 export function getMaintenanceRepository():

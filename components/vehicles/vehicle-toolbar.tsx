@@ -1,6 +1,5 @@
 "use client";
 
-import type { VehicleStatus } from "@/lib/types";
 import { vehicleBrands } from "@/lib/vehicles/data";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -9,8 +8,6 @@ import { Select } from "@/components/ui/select";
 interface VehicleToolbarProps {
   search: string;
   onSearchChange: (value: string) => void;
-  statusFilter: VehicleStatus | "all";
-  onStatusFilterChange: (value: VehicleStatus | "all") => void;
   brandFilter: string;
   onBrandFilterChange: (value: string) => void;
   onAddVehicle: () => void;
@@ -21,15 +18,13 @@ interface VehicleToolbarProps {
 export function VehicleToolbar({
   search,
   onSearchChange,
-  statusFilter,
-  onStatusFilterChange,
   brandFilter,
   onBrandFilterChange,
   onAddVehicle,
   totalCount,
   filteredCount,
 }: VehicleToolbarProps) {
-  const hasFilters = statusFilter !== "all" || brandFilter !== "" || search !== "";
+  const hasFilters = brandFilter !== "" || search !== "";
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -45,20 +40,6 @@ export function VehicleToolbar({
 
           <div className="flex flex-wrap items-center gap-2">
             <Select
-              value={statusFilter}
-              onChange={(e) =>
-                onStatusFilterChange(e.target.value as VehicleStatus | "all")
-              }
-              options={[
-                { value: "all", label: "All statuses" },
-                { value: "available", label: "Available" },
-                { value: "in_use", label: "In Use" },
-                { value: "maintenance", label: "Maintenance" },
-              ]}
-              aria-label="Filter by status"
-              className="w-auto min-w-[140px]"
-            />
-            <Select
               value={brandFilter}
               onChange={(e) => onBrandFilterChange(e.target.value)}
               options={[
@@ -73,7 +54,6 @@ export function VehicleToolbar({
                 type="button"
                 onClick={() => {
                   onSearchChange("");
-                  onStatusFilterChange("all");
                   onBrandFilterChange("");
                 }}
                 className="text-xs font-medium text-muted hover:text-foreground"

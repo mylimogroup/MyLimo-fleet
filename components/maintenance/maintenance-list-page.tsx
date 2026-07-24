@@ -7,7 +7,6 @@ import type {
   MaintenanceFormData,
   MaintenanceKPIs,
   MaintenanceListItem,
-  MaintenanceStatus,
 } from "@/lib/types";
 import { getMaintenanceRepository, getMaintenanceAlerts, getMaintenanceKPIs } from "@/lib/maintenance/service";
 import {
@@ -25,9 +24,9 @@ export function MaintenanceListPage() {
   const [allRecords, setAllRecords] = useState<MaintenanceListItem[]>([]);
   const [alerts, setAlerts] = useState<MaintenanceAlert[]>([]);
   const [kpis, setKpis] = useState<MaintenanceKPIs>({
-    vehiclesInMaintenance: 0,
-    upcomingServices: 0,
-    overdueMaintenance: 0,
+    vehiclesRequiringAttention: 0,
+    upcomingMaintenance: 0,
+    overdueDeadlines: 0,
     monthlyMaintenanceCosts: 0,
   });
 
@@ -35,9 +34,6 @@ export function MaintenanceListPage() {
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<
     MaintenanceCategory | "all"
-  >("all");
-  const [statusFilter, setStatusFilter] = useState<
-    MaintenanceStatus | "all"
   >("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -72,10 +68,8 @@ export function MaintenanceListPage() {
       if (brandFilter && record.vehicleBrand !== brandFilter) return false;
       if (categoryFilter !== "all" && record.category !== categoryFilter)
         return false;
-      if (statusFilter !== "all" && record.status !== statusFilter)
-        return false;
-      if (dateFrom && record.scheduledDate < dateFrom) return false;
-      if (dateTo && record.scheduledDate > dateTo) return false;
+      if (dateFrom && record.completedDate < dateFrom) return false;
+      if (dateTo && record.completedDate > dateTo) return false;
       if (search) {
         const q = search.toLowerCase();
         const haystack =
@@ -89,7 +83,6 @@ export function MaintenanceListPage() {
     search,
     brandFilter,
     categoryFilter,
-    statusFilter,
     dateFrom,
     dateTo,
   ]);
@@ -127,7 +120,7 @@ export function MaintenanceListPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Maintenance</h2>
         <p className="mt-1 text-sm text-muted">
-          Fleet service history, compliance deadlines and workshop operations
+          Workshop and mechanical service history
         </p>
       </div>
 
@@ -140,8 +133,6 @@ export function MaintenanceListPage() {
         onBrandFilterChange={setBrandFilter}
         categoryFilter={categoryFilter}
         onCategoryFilterChange={setCategoryFilter}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
         dateFrom={dateFrom}
         onDateFromChange={setDateFrom}
         dateTo={dateTo}

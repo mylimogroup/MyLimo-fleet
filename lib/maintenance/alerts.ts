@@ -1,112 +1,61 @@
-import type { MaintenanceAlert, MaintenanceRecord } from "@/lib/types";
-import { OIL_SERVICE_INTERVAL_KM } from "@/lib/maintenance/constants";
-import { daysUntil } from "@/lib/maintenance/utils";
-import { vehicles } from "@/lib/vehicles/data";
+import type { MaintenanceAlert, Vehicle } from "@/lib/types";
+import {
+  computeAllDeadlines,
+  DEADLINE_CATEGORY_LABELS,
+} from "@/lib/vehicles/deadlines";
 
-const EXPIRY_WARNING_DAYS = 30;
-const EXPIRY_DANGER_DAYS = 7;
+function alertTypeFromCategory(
+  category: string
+): MaintenanceAlert["type"] {
+  if (category === "insurance") return "insurance";
+  if (category === "road_tax") return "road_tax";
+  if (category === "vehicle_inspection") return "vehicle_inspection";
+  return "maintenance";
+}
+
+function buildAlertMessage(deadline: ReturnType<typeof computeAllDeadlines>[0]): string {
+  const parts: string[] = [];
+  if (deadline.daysRemaining !== null) {
+    if (deadline.daysRemaining <= 0) {
+      parts.push("date overdue");
+    } else {
+      parts.push(`${deadline.daysRemaining}d remaining`);
+    }
+  }
+  if (deadline.remainingKm !== null) {
+    if (deadline.remainingKm <= 0) {
+      parts.push("mileage reached");
+    } else {
+      parts.push(`${deadline.remainingKm.toLocaleString("it-IT")} km remaining`);
+    }
+  }
+  return parts.length > 0
+    ? `${deadline.label} — ${parts.join(", ")}`
+    : deadline.label;
+}
 
 export function computeMaintenanceAlerts(
-  records: MaintenanceRecord[]
+  vehicleList: Vehicle[]
 ): MaintenanceAlert[] {
   const alerts: MaintenanceAlert[] = [];
 
-  for (const vehicle of vehicles) {
-    if (vehicle.deadlines.insurance) {
-      const days = daysUntil(vehicle.deadlines.insurance);
-      if (days <= EXPIRY_WARNING_DAYS) {
-        alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "insurance_expiring",
-          message: `Insurance expires in ${days}d`,
-          severity: days <= EXPIRY_DANGER_DAYS ? "danger" : "warning",
-          dueDate: vehicle.deadlines.insurance,
-        });
-      }
-    }
+  for (const vehicle of vehicleList) {
+    const deadlines = computeAllDeadlines(vehicle).filter(
+      (d) => d.urgency !== "normal"
+    );
 
-    if (vehicle.deadlines.roadTax) {
-      const days = daysUntil(vehicle.deadlines.roadTax);
-      if (days <= EXPIRY_WARNING_DAYS) {
-        alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "road_tax_expiring",
-          message: `Road tax due in ${days}d`,
-          severity: days <= EXPIRY_DANGER_DAYS ? "danger" : "warning",
-          dueDate: vehicle.deadlines.roadTax,
-        });
-      }
-    }
-
-    if (vehicle.deadlines.inspection) {
-      const days = daysUntil(vehicle.deadlines.inspection);
-      if (days <= EXPIRY_WARNING_DAYS) {
-        alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "inspection_expiring",
-          message: `Inspection due in ${days}d`,
-          severity: days <= EXPIRY_DANGER_DAYS ? "danger" : "warning",
-          dueDate: vehicle.deadlines.inspection,
-        });
-      }
-    }
-
-    const lastOilService = records
-      .filter(
-        (r) =>
-          r.vehicleId === vehicle.id &&
-          r.category === "oil_change" &&
-          r.status === "completed"
-      )
-      .sort((a, b) => b.mileage - a.mileage)[0];
-
-    if (lastOilService?.nextServiceMileage) {
-      if (vehicle.currentMileage >= lastOilService.nextServiceMileage) {
-        alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "oil_service_due",
-          message: `Oil service due at ${vehicle.currentMileage.toLocaleString("it-IT")} km`,
-          severity: "danger",
-          dueMileage: lastOilService.nextServiceMileage,
-        });
-      } else if (
-        vehicle.currentMileage >=
-        lastOilService.nextServiceMileage - 2000
-      ) {
-        alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "oil_service_due",
-          message: `Oil service approaching (${(lastOilService.nextServiceMileage - vehicle.currentMileage).toLocaleString("it-IT")} km remaining)`,
-          severity: "warning",
-          dueMileage: lastOilService.nextServiceMileage,
-        });
-      }
-    } else if (vehicle.maintenance.lastEngineService && vehicle.currentMileage >= OIL_SERVICE_INTERVAL_KM) {
+    for (const deadline of deadlines) {
       alerts.push({
-          vehicleId: vehicle.id,
-          licensePlate: vehicle.licensePlate,
-          type: "oil_service_due",
-          message: "Oil service overdue by mileage",
-          severity: "warning",
-      });
-    }
-  }
-
-  for (const record of records) {
-    if (record.status === "overdue") {
-      alerts.push({
-        vehicleId: record.vehicleId,
-        licensePlate:
-          vehicles.find((v) => v.id === record.vehicleId)?.licensePlate ?? "—",
-        type: "service_overdue",
-        message: `${record.description} is overdue`,
-        severity: "danger",
-        dueDate: record.scheduledDate,
+        vehicleId: vehicle.id,
+        licensePlate: vehicle.licensePlate,
+        type: alertTypeFromCategory(deadline.category),
+        label: deadline.label,
+        message: buildAlertMessage(deadline),
+        urgency: deadline.urgency,
+        dueDate: deadline.dueDate ?? undefined,
+        targetMileage: deadline.targetMileage ?? undefined,
+        daysRemaining: deadline.daysRemaining ?? undefined,
+        remainingKm: deadline.remainingKm ?? undefined,
       });
     }
   }
@@ -115,10 +64,9 @@ export function computeMaintenanceAlerts(
 }
 
 export function getAlertsForVehicle(
-  vehicleId: string,
-  records: MaintenanceRecord[]
+  vehicle: Vehicle
 ): MaintenanceAlert[] {
-  return computeMaintenanceAlerts(records).filter(
-    (a) => a.vehicleId === vehicleId
-  );
+  return computeMaintenanceAlerts([vehicle]);
 }
+
+export { DEADLINE_CATEGORY_LABELS };
