@@ -9,6 +9,7 @@ import {
 import { getDocumentCategoryLabel } from "@/lib/vehicles/documents";
 import {
   buildDeadlinesFromMaintenance,
+  formDataToDeadline,
   maintenanceCategoryToDeadlineCategory,
   maintenanceHistoryType,
   mergeVehicleDeadlines,
@@ -18,6 +19,7 @@ import type {
   MaintenanceFormData,
   MaintenanceRecord,
   Vehicle,
+  VehicleDeadlineFormData,
   VehicleFilters,
   VehicleFormData,
   VehicleListItem,
@@ -48,8 +50,15 @@ export function applyMaintenanceCompletion(
   );
 
   const now = new Date().toISOString();
+  const updatedMileage = Math.max(vehicle.currentMileage, record.mileage);
+
   vehicleStore[index] = {
     ...vehicle,
+    currentMileage: updatedMileage,
+    lastMileageUpdateDate:
+      updatedMileage > vehicle.currentMileage
+        ? record.completedDate
+        : vehicle.lastMileageUpdateDate,
     deadlines: updatedDeadlines,
     updatedAt: now,
     history: [
@@ -198,6 +207,101 @@ export class MockVehicleRepository implements VehicleRepository {
     return vehicleStore[index];
   }
 
+  async addDeadline(
+    vehicleId: string,
+    data: VehicleDeadlineFormData
+  ): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const now = new Date().toISOString();
+    const deadline = formDataToDeadline(data);
+    const vehicle = vehicleStore[index];
+
+    vehicleStore[index] = {
+      ...vehicle,
+      deadlines: [deadline, ...vehicle.deadlines],
+      updatedAt: now,
+      history: [
+        {
+          id: crypto.randomUUID(),
+          type: "deadline",
+          description: `Deadline added: ${deadline.label}`,
+          timestamp: now,
+        },
+        ...vehicle.history,
+      ],
+    };
+    return vehicleStore[index];
+  }
+
+  async updateDeadline(
+    vehicleId: string,
+    deadlineId: string,
+    data: VehicleDeadlineFormData
+  ): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const vehicle = vehicleStore[index];
+    const existing = vehicle.deadlines.find((d) => d.id === deadlineId);
+    if (!existing) throw new Error(`Deadline ${deadlineId} not found`);
+
+    const now = new Date().toISOString();
+    const updated = formDataToDeadline(data, deadlineId);
+    updated.createdAt = existing.createdAt;
+    updated.sourceMaintenanceId = existing.sourceMaintenanceId;
+    updated.sourceDocumentId = existing.sourceDocumentId;
+    updated.updatedAt = now;
+
+    vehicleStore[index] = {
+      ...vehicle,
+      deadlines: vehicle.deadlines.map((d) =>
+        d.id === deadlineId ? updated : d
+      ),
+      updatedAt: now,
+      history: [
+        {
+          id: crypto.randomUUID(),
+          type: "deadline",
+          description: `Deadline updated: ${updated.label}`,
+          timestamp: now,
+        },
+        ...vehicle.history,
+      ],
+    };
+    return vehicleStore[index];
+  }
+
+  async deleteDeadline(
+    vehicleId: string,
+    deadlineId: string
+  ): Promise<Vehicle> {
+    const index = vehicleStore.findIndex((v) => v.id === vehicleId);
+    if (index === -1) throw new Error(`Vehicle ${vehicleId} not found`);
+
+    const vehicle = vehicleStore[index];
+    const removed = vehicle.deadlines.find((d) => d.id === deadlineId);
+    if (!removed) throw new Error(`Deadline ${deadlineId} not found`);
+
+    const now = new Date().toISOString();
+    vehicleStore[index] = {
+      ...vehicle,
+      deadlines: vehicle.deadlines.filter((d) => d.id !== deadlineId),
+      updatedAt: now,
+      history: [
+        {
+          id: crypto.randomUUID(),
+          type: "deadline",
+          description: `Deadline removed: ${removed.label}`,
+          timestamp: now,
+        },
+        ...vehicle.history,
+      ],
+    };
+    return vehicleStore[index];
+  }
+
   async delete(id: string): Promise<void> {
     vehicleStore = vehicleStore.filter((v) => v.id !== id);
   }
@@ -229,6 +333,18 @@ export class SupabaseVehicleRepository implements VehicleRepository {
   }
 
   async updateCosts(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async addDeadline(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async updateDeadline(): Promise<Vehicle> {
+    throw new Error("SupabaseVehicleRepository not yet implemented");
+  }
+
+  async deleteDeadline(): Promise<Vehicle> {
     throw new Error("SupabaseVehicleRepository not yet implemented");
   }
 

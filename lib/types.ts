@@ -46,12 +46,14 @@ export type VehicleHistoryType =
   | "tire_replacement"
   | "tire_rotation"
   | "automatic_transmission_service"
-  | "vehicle_purchase";
+  | "vehicle_purchase"
+  | "deadline";
 
 export type VehicleDeadlineCategory =
   | "insurance"
   | "road_tax"
   | "vehicle_inspection"
+  | "ncc_license"
   | "scheduled_service"
   | "oil_change"
   | "automatic_transmission_service"
@@ -63,12 +65,15 @@ export type VehicleDeadlineCategory =
 
 export type DeadlineUrgency = "overdue" | "urgent" | "approaching" | "normal";
 
+export type DeadlineTriggerType = "date" | "mileage" | "both";
+
 export interface VehicleDeadline {
   id: string;
   category: VehicleDeadlineCategory;
   label: string;
   dueDate: string | null;
   targetMileage: number | null;
+  notes: string;
   sourceMaintenanceId: string | null;
   sourceDocumentId: string | null;
   createdAt: string;
@@ -81,6 +86,31 @@ export interface ComputedDeadline extends VehicleDeadline {
   remainingKm: number | null;
   currentMileage: number;
   isAdministrative: boolean;
+  triggerType: DeadlineTriggerType;
+  isEditable: boolean;
+}
+
+export interface FleetDeadlineRow extends ComputedDeadline {
+  vehicleId: string;
+  licensePlate: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+}
+
+export interface VehicleDeadlineFormData {
+  vehicleId: string;
+  category: VehicleDeadlineCategory;
+  triggerType: DeadlineTriggerType;
+  dueDate: string | null;
+  targetMileage: number | "";
+  notes: string;
+}
+
+export interface DeadlineKPIs {
+  overdue: number;
+  dueWithin7Days: number;
+  dueWithin30Days: number;
+  mileageAlerts: number;
 }
 
 export interface VehicleHistoryEntry {
@@ -409,6 +439,7 @@ export type MaintenanceAlertType =
   | "insurance"
   | "road_tax"
   | "vehicle_inspection"
+  | "ncc_license"
   | "maintenance";
 
 export interface MaintenanceAlert {

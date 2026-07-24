@@ -42,12 +42,14 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [mileageOpen, setMileageOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
 
   const loading = loadedId !== vehicleId;
 
   const refresh = async () => {
     const data = await repository.getById(vehicleId);
     setVehicle(data);
+    setMaintenanceRefreshKey((key) => key + 1);
   };
 
   useEffect(() => {
@@ -187,9 +189,15 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
             />
           )}
           {activeTab === "maintenance" && (
-            <MaintenanceTab vehicleId={vehicleId} vehicle={vehicle} />
+            <MaintenanceTab
+              vehicleId={vehicleId}
+              vehicle={vehicle}
+              refreshKey={maintenanceRefreshKey}
+            />
           )}
-          {activeTab === "deadlines" && <DeadlinesTab vehicle={vehicle} />}
+          {activeTab === "deadlines" && (
+            <DeadlinesTab vehicle={vehicle} onRefresh={refresh} />
+          )}
           {activeTab === "costs" && <CostsTab vehicle={vehicle} />}
           {activeTab === "history" && <HistoryTab vehicle={vehicle} />}
         </div>

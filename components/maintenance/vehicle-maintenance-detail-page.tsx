@@ -58,9 +58,7 @@ export function VehicleMaintenanceDetailPage({
   );
 
   const upcomingDeadlines = vehicle
-    ? computeAllDeadlines(vehicle).filter(
-        (d) => !d.isAdministrative && d.urgency !== "normal"
-      )
+    ? computeAllDeadlines(vehicle).filter((d) => !d.isAdministrative)
     : [];
 
   const refresh = async () => {

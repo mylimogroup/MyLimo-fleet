@@ -1,11 +1,15 @@
 import type {
   ComputedDeadline,
+  DeadlineKPIs,
+  DeadlineTriggerType,
   DeadlineUrgency,
+  FleetDeadlineRow,
   MaintenanceCategory,
   MaintenanceFormData,
   Vehicle,
   VehicleDeadline,
   VehicleDeadlineCategory,
+  VehicleDeadlineFormData,
   VehicleDocumentCategory,
   VehicleHistoryEntry,
   VehicleListItem,
@@ -19,7 +23,14 @@ const ADMIN_DOC_CATEGORIES: VehicleDocumentCategory[] = [
   "vehicle_inspection",
 ];
 
-const URGENCY_RANK: Record<DeadlineUrgency, number> = {
+const ADMIN_CATEGORIES: VehicleDeadlineCategory[] = [
+  "insurance",
+  "road_tax",
+  "vehicle_inspection",
+  "ncc_license",
+];
+
+export const URGENCY_RANK: Record<DeadlineUrgency, number> = {
   overdue: 0,
   urgent: 1,
   approaching: 2,
@@ -31,6 +42,7 @@ export const DEADLINE_CATEGORY_LABELS: Record<VehicleDeadlineCategory, string> =
     insurance: "Insurance",
     road_tax: "Road Tax",
     vehicle_inspection: "Vehicle Inspection / MOT",
+    ncc_license: "NCC License / Authorization Renewal",
     scheduled_service: "Scheduled Service",
     oil_change: "Oil Change",
     automatic_transmission_service: "Automatic Transmission Service",
@@ -38,8 +50,39 @@ export const DEADLINE_CATEGORY_LABELS: Record<VehicleDeadlineCategory, string> =
     tire_replacement: "Tire Replacement",
     brakes: "Brakes",
     battery: "Battery",
-    custom: "Custom Maintenance",
+    custom: "Custom",
   };
+
+export const DEADLINE_CATEGORIES: {
+  value: VehicleDeadlineCategory;
+  label: string;
+  group: "administrative" | "maintenance";
+}[] = [
+  { value: "insurance", label: "Insurance", group: "administrative" },
+  { value: "road_tax", label: "Road Tax", group: "administrative" },
+  {
+    value: "vehicle_inspection",
+    label: "Vehicle Inspection / MOT",
+    group: "administrative",
+  },
+  {
+    value: "ncc_license",
+    label: "NCC License / Authorization Renewal",
+    group: "administrative",
+  },
+  { value: "scheduled_service", label: "Scheduled Service", group: "maintenance" },
+  { value: "oil_change", label: "Oil Change", group: "maintenance" },
+  {
+    value: "automatic_transmission_service",
+    label: "Automatic Transmission Service",
+    group: "maintenance",
+  },
+  { value: "tire_replacement", label: "Tire Replacement", group: "maintenance" },
+  { value: "tire_rotation", label: "Tire Rotation", group: "maintenance" },
+  { value: "brakes", label: "Brakes", group: "maintenance" },
+  { value: "battery", label: "Battery", group: "maintenance" },
+  { value: "custom", label: "Custom", group: "maintenance" },
+];
 
 export function daysUntil(date: string): number {
   const now = new Date();
@@ -47,6 +90,21 @@ export function daysUntil(date: string): number {
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function getDeadlineTriggerType(
+  dueDate: string | null,
+  targetMileage: number | null
+): DeadlineTriggerType {
+  if (dueDate && targetMileage !== null) return "both";
+  if (targetMileage !== null) return "mileage";
+  return "date";
+}
+
+export function getTriggerTypeLabel(type: DeadlineTriggerType): string {
+  if (type === "date") return "Date";
+  if (type === "mileage") return "Mileage";
+  return "Date + Mileage";
 }
 
 function urgencyFromDays(daysRemaining: number | null): DeadlineUrgency | null {
@@ -103,6 +161,22 @@ export function computeDeadlineUrgency(
   };
 }
 
+export function getUrgencyLabel(urgency: DeadlineUrgency): string {
+  if (urgency === "overdue") return "Critical";
+  if (urgency === "urgent") return "Urgent";
+  if (urgency === "approaching") return "Approaching";
+  return "OK";
+}
+
+export function urgencyBadgeVariant(
+  urgency: DeadlineUrgency
+): "danger" | "warning" | "success" | "default" {
+  if (urgency === "overdue") return "danger";
+  if (urgency === "urgent") return "warning";
+  if (urgency === "approaching") return "warning";
+  return "success";
+}
+
 function docToDeadlineCategory(
   category: VehicleDocumentCategory
 ): VehicleDeadlineCategory | null {
@@ -110,6 +184,12 @@ function docToDeadlineCategory(
   if (category === "road_tax") return "road_tax";
   if (category === "vehicle_inspection") return "vehicle_inspection";
   return null;
+}
+
+export function isAdministrativeCategory(
+  category: VehicleDeadlineCategory
+): boolean {
+  return ADMIN_CATEGORIES.includes(category);
 }
 
 export function maintenanceCategoryToDeadlineCategory(
@@ -131,10 +211,111 @@ export function maintenanceCategoryToDeadlineCategory(
   return map[category];
 }
 
+const ADMIN_ONLY_CATEGORIES: VehicleDeadlineCategory[] = [
+  "insurance",
+  "road_tax",
+  "vehicle_inspection",
+  "ncc_license",
+];
+
+export function deadlineCategoryToMaintenanceCategory(
+  category: VehicleDeadlineCategory
+): MaintenanceCategory | null {
+  if (ADMIN_ONLY_CATEGORIES.includes(category)) return null;
+  if (category === "custom") return "other";
+  return category as MaintenanceCategory;
+}
+
+export function canCompleteDeadlineAsMaintenance(
+  deadline: ComputedDeadline
+): boolean {
+  return (
+    !deadline.isAdministrative &&
+    deadlineCategoryToMaintenanceCategory(deadline.category) !== null
+  );
+}
+
+export function defaultRecurrenceForDeadline(
+  deadline: ComputedDeadline
+): { repeatEveryKm: number | null; repeatEveryMonths: number | null } {
+  if (deadline.category === "tire_rotation") {
+    return { repeatEveryKm: 10000, repeatEveryMonths: null };
+  }
+  if (deadline.category === "oil_change") {
+    return { repeatEveryKm: 15000, repeatEveryMonths: null };
+  }
+  if (deadline.triggerType === "mileage" || deadline.triggerType === "both") {
+    return { repeatEveryKm: 10000, repeatEveryMonths: null };
+  }
+  if (deadline.triggerType === "date") {
+    return { repeatEveryKm: null, repeatEveryMonths: 12 };
+  }
+  return { repeatEveryKm: null, repeatEveryMonths: null };
+}
+
+export function createMaintenanceFormFromDeadline(
+  deadline: ComputedDeadline,
+  vehicleId: string,
+  currentMileage: number
+): MaintenanceFormData | null {
+  const category = deadlineCategoryToMaintenanceCategory(deadline.category);
+  if (!category) return null;
+
+  const defaults = defaultRecurrenceForDeadline(deadline);
+
+  return {
+    vehicleId,
+    category,
+    description: `${deadline.label} completed`,
+    workshop: "",
+    completedDate: new Date().toISOString().split("T")[0],
+    mileage: currentMileage,
+    labourCost: "",
+    totalCost: "",
+    notes: deadline.notes,
+    invoicePdfUrl: null,
+    invoicePdfName: null,
+    tireDetails: null,
+    recurrence: {
+      enabled:
+        defaults.repeatEveryKm !== null || defaults.repeatEveryMonths !== null,
+      repeatEveryKm: defaults.repeatEveryKm,
+      repeatEveryMonths: defaults.repeatEveryMonths,
+    },
+    tireRotationReminder: {
+      enabled: false,
+      intervalKm: 10000,
+    },
+  };
+}
+
+function enrichDeadline(
+  deadline: VehicleDeadline,
+  vehicle: Vehicle,
+  isAdministrative: boolean,
+  isEditable: boolean
+): ComputedDeadline {
+  const { urgency, daysRemaining, remainingKm } = computeDeadlineUrgency(
+    deadline.dueDate,
+    deadline.targetMileage,
+    vehicle.currentMileage
+  );
+  return {
+    ...deadline,
+    urgency,
+    daysRemaining,
+    remainingKm,
+    currentMileage: vehicle.currentMileage,
+    isAdministrative,
+    triggerType: getDeadlineTriggerType(deadline.dueDate, deadline.targetMileage),
+    isEditable,
+  };
+}
+
 export function computeAdministrativeDeadlines(
   vehicle: Vehicle
 ): ComputedDeadline[] {
-  return vehicle.documents
+  const fromDocuments = vehicle.documents
     .filter(
       (doc) =>
         doc.expirationDate &&
@@ -142,55 +323,84 @@ export function computeAdministrativeDeadlines(
     )
     .map((doc) => {
       const category = docToDeadlineCategory(doc.category)!;
-      const { urgency, daysRemaining, remainingKm } = computeDeadlineUrgency(
-        doc.expirationDate,
-        null,
-        vehicle.currentMileage
+      return enrichDeadline(
+        {
+          id: `doc-${doc.id}`,
+          category,
+          label: getDocumentCategoryLabel(doc.category),
+          dueDate: doc.expirationDate,
+          targetMileage: null,
+          notes: "",
+          sourceMaintenanceId: null,
+          sourceDocumentId: doc.id,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+        },
+        vehicle,
+        true,
+        false
       );
-      return {
-        id: `doc-${doc.id}`,
-        category,
-        label: getDocumentCategoryLabel(doc.category),
-        dueDate: doc.expirationDate,
-        targetMileage: null,
-        sourceMaintenanceId: null,
-        sourceDocumentId: doc.id,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt,
-        urgency,
-        daysRemaining,
-        remainingKm,
-        currentMileage: vehicle.currentMileage,
-        isAdministrative: true,
-      };
     });
+
+  const fromStored = vehicle.deadlines
+    .filter((d) => isAdministrativeCategory(d.category))
+    .map((d) => enrichDeadline(d, vehicle, true, true));
+
+  return [...fromDocuments, ...fromStored];
 }
 
 export function computeMaintenanceDeadlines(
   vehicle: Vehicle
 ): ComputedDeadline[] {
-  return vehicle.deadlines.map((deadline) => {
-    const { urgency, daysRemaining, remainingKm } = computeDeadlineUrgency(
-      deadline.dueDate,
-      deadline.targetMileage,
-      vehicle.currentMileage
-    );
-    return {
-      ...deadline,
-      urgency,
-      daysRemaining,
-      remainingKm,
-      currentMileage: vehicle.currentMileage,
-      isAdministrative: false,
-    };
-  });
+  return vehicle.deadlines
+    .filter((d) => !isAdministrativeCategory(d.category))
+    .map((d) => enrichDeadline(d, vehicle, false, true));
 }
 
 export function computeAllDeadlines(vehicle: Vehicle): ComputedDeadline[] {
   return [
     ...computeAdministrativeDeadlines(vehicle),
     ...computeMaintenanceDeadlines(vehicle),
-  ].sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]);
+  ].sort((a, b) => {
+    const rankDiff = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency];
+    if (rankDiff !== 0) return rankDiff;
+    const aDays = a.daysRemaining ?? Infinity;
+    const bDays = b.daysRemaining ?? Infinity;
+    if (aDays !== bDays) return aDays - bDays;
+    return (a.remainingKm ?? Infinity) - (b.remainingKm ?? Infinity);
+  });
+}
+
+export function computeFleetDeadlines(vehicles: Vehicle[]): FleetDeadlineRow[] {
+  return vehicles
+    .flatMap((vehicle) =>
+      computeAllDeadlines(vehicle).map((deadline) => ({
+        ...deadline,
+        vehicleId: vehicle.id,
+        licensePlate: vehicle.licensePlate,
+        vehicleBrand: vehicle.brand,
+        vehicleModel: vehicle.model,
+      }))
+    )
+    .sort((a, b) => {
+      const rankDiff = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency];
+      if (rankDiff !== 0) return rankDiff;
+      const aDays = a.daysRemaining ?? Infinity;
+      const bDays = b.daysRemaining ?? Infinity;
+      if (aDays !== bDays) return aDays - bDays;
+      return (a.remainingKm ?? Infinity) - (b.remainingKm ?? Infinity);
+    });
+}
+
+export function computeDeadlineKPIs(rows: FleetDeadlineRow[]): DeadlineKPIs {
+  return {
+    overdue: rows.filter((r) => r.urgency === "overdue").length,
+    dueWithin7Days: rows.filter((r) => r.urgency === "urgent").length,
+    dueWithin30Days: rows.filter((r) => r.urgency === "approaching").length,
+    mileageAlerts: rows.filter(
+      (r) => r.targetMileage !== null && r.urgency !== "normal"
+    ).length,
+  };
 }
 
 export function getNextDeadlineForVehicle(
@@ -200,28 +410,14 @@ export function getNextDeadlineForVehicle(
     (d) => d.urgency !== "normal"
   );
 
-  if (deadlines.length === 0) {
-    const all = computeAllDeadlines(vehicle);
-    if (all.length === 0) return null;
-    const next = all.sort((a, b) => {
-      const rankDiff = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency];
-      if (rankDiff !== 0) return rankDiff;
-      const aDays = a.daysRemaining ?? Infinity;
-      const bDays = b.daysRemaining ?? Infinity;
-      if (aDays !== bDays) return aDays - bDays;
-      return (a.remainingKm ?? Infinity) - (b.remainingKm ?? Infinity);
-    })[0];
-    return {
-      label: next.label,
-      urgency: next.urgency,
-      dueDate: next.dueDate,
-      targetMileage: next.targetMileage,
-      daysRemaining: next.daysRemaining,
-      remainingKm: next.remainingKm,
-    };
-  }
+  const next =
+    deadlines[0] ??
+    computeAllDeadlines(vehicle).sort(
+      (a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]
+    )[0];
 
-  const next = deadlines[0];
+  if (!next) return null;
+
   return {
     label: next.label,
     urgency: next.urgency,
@@ -236,6 +432,68 @@ function addMonths(dateStr: string, months: number): string {
   const date = new Date(dateStr);
   date.setMonth(date.getMonth() + months);
   return date.toISOString().split("T")[0];
+}
+
+export function formDataToDeadline(
+  data: VehicleDeadlineFormData,
+  id?: string
+): VehicleDeadline {
+  const now = new Date().toISOString();
+  const targetMileage =
+    typeof data.targetMileage === "number" ? data.targetMileage : null;
+
+  let dueDate: string | null = null;
+  let mileage: number | null = null;
+
+  if (data.triggerType === "date" || data.triggerType === "both") {
+    dueDate = data.dueDate;
+  }
+  if (data.triggerType === "mileage" || data.triggerType === "both") {
+    mileage = targetMileage;
+  }
+
+  return {
+    id: id ?? crypto.randomUUID(),
+    category: data.category,
+    label: DEADLINE_CATEGORY_LABELS[data.category],
+    dueDate,
+    targetMileage: mileage,
+    notes: data.notes,
+    sourceMaintenanceId: null,
+    sourceDocumentId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function deadlineToFormData(
+  deadline: VehicleDeadline,
+  vehicleId: string
+): VehicleDeadlineFormData {
+  return {
+    vehicleId,
+    category: deadline.category,
+    triggerType: getDeadlineTriggerType(
+      deadline.dueDate,
+      deadline.targetMileage
+    ),
+    dueDate: deadline.dueDate,
+    targetMileage: deadline.targetMileage ?? "",
+    notes: deadline.notes,
+  };
+}
+
+export function createEmptyDeadlineForm(
+  vehicleId = ""
+): VehicleDeadlineFormData {
+  return {
+    vehicleId,
+    category: "oil_change",
+    triggerType: "mileage",
+    dueDate: null,
+    targetMileage: "",
+    notes: "",
+  };
 }
 
 export function buildDeadlinesFromMaintenance(
@@ -272,6 +530,7 @@ export function buildDeadlinesFromMaintenance(
         label,
         dueDate,
         targetMileage,
+        notes: "",
         sourceMaintenanceId: recordId,
         sourceDocumentId: null,
         createdAt: now,
@@ -293,6 +552,7 @@ export function buildDeadlinesFromMaintenance(
       targetMileage:
         formData.tireDetails.installationMileage +
         formData.tireRotationReminder.intervalKm,
+      notes: "",
       sourceMaintenanceId: recordId,
       sourceDocumentId: null,
       createdAt: now,
@@ -326,10 +586,21 @@ export function maintenanceHistoryType(
   return "maintenance";
 }
 
-export function urgencyBadgeVariant(
-  urgency: DeadlineUrgency
-): "danger" | "warning" | "default" {
-  if (urgency === "overdue" || urgency === "urgent") return "danger";
-  if (urgency === "approaching") return "warning";
-  return "default";
+export function formatRemaining(deadline: ComputedDeadline): string {
+  const parts: string[] = [];
+  if (deadline.daysRemaining !== null) {
+    parts.push(
+      deadline.daysRemaining <= 0
+        ? "Date overdue"
+        : `${deadline.daysRemaining} days`
+    );
+  }
+  if (deadline.remainingKm !== null) {
+    parts.push(
+      deadline.remainingKm <= 0
+        ? "Mileage reached"
+        : `${deadline.remainingKm.toLocaleString("it-IT")} km`
+    );
+  }
+  return parts.length > 0 ? parts.join(" / ") : "—";
 }

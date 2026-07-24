@@ -10,6 +10,7 @@ function alertTypeFromCategory(
   if (category === "insurance") return "insurance";
   if (category === "road_tax") return "road_tax";
   if (category === "vehicle_inspection") return "vehicle_inspection";
+  if (category === "ncc_license") return "ncc_license";
   return "maintenance";
 }
 

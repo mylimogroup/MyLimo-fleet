@@ -24,6 +24,7 @@ const typeLabels: Record<string, string> = {
   tire_rotation: "Tire Rotation",
   automatic_transmission_service: "Automatic Transmission Service",
   vehicle_purchase: "Vehicle Purchase",
+  deadline: "Deadline",
 };
 
 export function HistoryTab({ vehicle }: HistoryTabProps) {

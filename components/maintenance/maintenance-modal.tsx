@@ -20,8 +20,11 @@ interface MaintenanceModalProps {
   onClose: () => void;
   onSave: (data: MaintenanceFormData) => void;
   initialData?: MaintenanceFormData;
-  mode?: "create" | "edit";
+  mode?: "create" | "edit" | "complete";
   defaultVehicleId?: string;
+  lockVehicle?: boolean;
+  lockCategory?: boolean;
+  completeLabel?: string;
 }
 
 function emptyTireDetails() {
@@ -42,6 +45,9 @@ export function MaintenanceModal({
   initialData,
   mode = "create",
   defaultVehicleId,
+  lockVehicle = false,
+  lockCategory = false,
+  completeLabel,
 }: MaintenanceModalProps) {
   const [formData, setFormData] = useState<MaintenanceFormData>(() => {
     const base = initialData ?? createEmptyMaintenanceForm();
@@ -87,13 +93,23 @@ export function MaintenanceModal({
 
   const isTireReplacement = formData.category === "tire_replacement";
   const selectedVehicle = vehicles.find((v) => v.value === formData.vehicleId);
+  const modalTitle =
+    mode === "complete"
+      ? completeLabel ?? "Complete Maintenance"
+      : mode === "create"
+        ? "Log Maintenance"
+        : "Edit Maintenance Record";
+  const modalSubtitle =
+    mode === "complete"
+      ? "Log the completed operation and schedule the next deadline if needed"
+      : "Record a completed workshop or mechanical operation";
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title={mode === "create" ? "Log Maintenance" : "Edit Maintenance Record"}
-      subtitle="Record a completed workshop or mechanical operation"
+      title={modalTitle}
+      subtitle={modalSubtitle}
       size="xl"
       footer={
         <>
@@ -101,7 +117,11 @@ export function MaintenanceModal({
             Cancel
           </Button>
           <Button onClick={handleSave}>
-            {mode === "create" ? "Save Record" : "Save Changes"}
+            {mode === "complete"
+              ? "Complete & Schedule"
+              : mode === "create"
+                ? "Save Record"
+                : "Save Changes"}
           </Button>
         </>
       }
@@ -118,6 +138,7 @@ export function MaintenanceModal({
                 mileage: vehicle?.mileage ?? formData.mileage,
               });
             }}
+            disabled={lockVehicle}
             options={[
               { value: "", label: "Select vehicle..." },
               ...vehicles.map((v) => ({ value: v.value, label: v.label })),
@@ -138,6 +159,7 @@ export function MaintenanceModal({
                     : null,
               });
             }}
+            disabled={lockCategory}
             options={MAINTENANCE_CATEGORIES.map((c) => ({
               value: c.value,
               label: c.label,

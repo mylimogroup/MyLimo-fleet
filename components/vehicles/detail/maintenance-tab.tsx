@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Vehicle } from "@/lib/types";
 import { getMaintenanceRepository } from "@/lib/maintenance/service";
-import { computeAllDeadlines, urgencyBadgeVariant } from "@/lib/vehicles/deadlines";
+import { computeAllDeadlines, getUrgencyLabel, urgencyBadgeVariant } from "@/lib/vehicles/deadlines";
 import { formatDate, formatMileage } from "@/lib/vehicles/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,10 @@ import { MaintenanceTimeline } from "@/components/maintenance/maintenance-timeli
 interface MaintenanceTabProps {
   vehicleId: string;
   vehicle: Vehicle;
+  refreshKey?: number;
 }
 
-export function MaintenanceTab({ vehicleId, vehicle }: MaintenanceTabProps) {
+export function MaintenanceTab({ vehicleId, vehicle, refreshKey = 0 }: MaintenanceTabProps) {
   const [records, setRecords] = useState<
     Awaited<ReturnType<ReturnType<typeof getMaintenanceRepository>["listByVehicle"]>>
   >([]);
@@ -33,10 +34,10 @@ export function MaintenanceTab({ vehicleId, vehicle }: MaintenanceTabProps) {
         }
       });
     return () => { cancelled = true; };
-  }, [vehicleId]);
+  }, [vehicleId, refreshKey]);
 
   const upcomingDeadlines = computeAllDeadlines(vehicle).filter(
-    (d) => !d.isAdministrative && d.urgency !== "normal"
+    (d) => !d.isAdministrative
   );
 
   if (loading) {
@@ -101,7 +102,7 @@ export function MaintenanceTab({ vehicleId, vehicle }: MaintenanceTabProps) {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={urgencyBadgeVariant(deadline.urgency)}>
-                        {deadline.urgency}
+                        {getUrgencyLabel(deadline.urgency)}
                       </Badge>
                     </td>
                   </tr>

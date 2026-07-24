@@ -46,7 +46,7 @@ function DeadlineCell({
         )}
         <Badge variant={variant}>
           {deadline.urgency === "overdue"
-            ? "Overdue"
+            ? "Critical"
             : deadline.remainingKm !== null && deadline.remainingKm <= 1000
               ? `${deadline.remainingKm.toLocaleString("it-IT")} km`
               : deadline.daysRemaining !== null

@@ -1,106 +1,142 @@
 "use client";
 
-import type { Vehicle } from "@/lib/types";
-import { computeAllDeadlines, urgencyBadgeVariant } from "@/lib/vehicles/deadlines";
-import { formatDate, formatMileage } from "@/lib/vehicles/utils";
-import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
+import { useState } from "react";
+import type { Vehicle, VehicleDeadlineFormData } from "@/lib/types";
+import {
+  computeAllDeadlines,
+  createEmptyDeadlineForm,
+  createMaintenanceFormFromDeadline,
+  deadlineToFormData,
+} from "@/lib/vehicles/deadlines";
+import { getVehicleRepository } from "@/lib/vehicles/service";
+import { getMaintenanceRepository } from "@/lib/maintenance/service";
+import { Button } from "@/components/ui/button";
+import { DeadlineModal } from "@/components/deadlines/deadline-modal";
+import { DeadlineTable } from "@/components/deadlines/deadline-table";
+import { MaintenanceModal } from "@/components/maintenance/maintenance-modal";
 
 interface DeadlinesTabProps {
   vehicle: Vehicle;
+  onRefresh: () => void;
 }
 
-function urgencyLabel(urgency: string) {
-  if (urgency === "overdue") return "Overdue";
-  if (urgency === "urgent") return "Urgent";
-  if (urgency === "approaching") return "Approaching";
-  return "Normal";
-}
-
-export function DeadlinesTab({ vehicle }: DeadlinesTabProps) {
+export function DeadlinesTab({ vehicle, onRefresh }: DeadlinesTabProps) {
+  const repository = getVehicleRepository();
+  const maintenanceRepository = getMaintenanceRepository();
   const deadlines = computeAllDeadlines(vehicle);
 
-  if (deadlines.length === 0) {
-    return (
-      <EmptyState
-        icon={
-          <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-          </svg>
-        }
-        title="No upcoming deadlines"
-        description="Administrative and maintenance deadlines will appear here"
-      />
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<
+    VehicleDeadlineFormData | undefined
+  >();
+
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [completeFormData, setCompleteFormData] = useState<
+    ReturnType<typeof createMaintenanceFormFromDeadline> | undefined
+  >();
+  const [completingLabel, setCompletingLabel] = useState("");
+
+  const handleAdd = () => {
+    setEditingId(null);
+    setEditFormData(undefined);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (row: (typeof deadlines)[0]) => {
+    const stored = vehicle.deadlines.find((d) => d.id === row.id);
+    if (!stored) return;
+    setEditingId(row.id);
+    setEditFormData(deadlineToFormData(stored, vehicle.id));
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (row: (typeof deadlines)[0]) => {
+    await repository.deleteDeadline(vehicle.id, row.id);
+    onRefresh();
+  };
+
+  const handleSave = async (data: VehicleDeadlineFormData) => {
+    if (editingId) {
+      await repository.updateDeadline(vehicle.id, editingId, data);
+    } else {
+      await repository.addDeadline(vehicle.id, data);
+    }
+    onRefresh();
+  };
+
+  const handleComplete = (row: (typeof deadlines)[0]) => {
+    const form = createMaintenanceFormFromDeadline(
+      row,
+      vehicle.id,
+      vehicle.currentMileage
     );
-  }
+    if (!form) return;
+    setCompletingId(row.id);
+    setCompletingLabel(row.label);
+    setCompleteFormData(form);
+    setCompleteOpen(true);
+  };
+
+  const handleCompleteSave = async (
+    data: NonNullable<typeof completeFormData>
+  ) => {
+    await maintenanceRepository.create(data);
+    onRefresh();
+  };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-background/50">
-            {[
-              "Category",
-              "Type",
-              "Due Date",
-              "Target Mileage",
-              "Remaining",
-              "Status",
-            ].map((col) => (
-              <th
-                key={col}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted"
-              >
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {deadlines.map((deadline) => (
-            <tr key={deadline.id} className="hover:bg-background/40">
-              <td className="px-4 py-3 font-medium">{deadline.label}</td>
-              <td className="px-4 py-3 text-muted">
-                {deadline.isAdministrative ? "Administrative" : "Maintenance"}
-              </td>
-              <td className="px-4 py-3">
-                {deadline.dueDate ? formatDate(deadline.dueDate) : "—"}
-              </td>
-              <td className="px-4 py-3 tabular-nums">
-                {deadline.targetMileage !== null
-                  ? formatMileage(deadline.targetMileage)
-                  : "—"}
-              </td>
-              <td className="px-4 py-3">
-                <div className="space-y-0.5 text-xs">
-                  {deadline.daysRemaining !== null && (
-                    <p>
-                      {deadline.daysRemaining <= 0
-                        ? "Date overdue"
-                        : `${deadline.daysRemaining} days`}
-                    </p>
-                  )}
-                  {deadline.remainingKm !== null && (
-                    <p className="tabular-nums">
-                      {deadline.remainingKm <= 0
-                        ? "Mileage reached"
-                        : `${deadline.remainingKm.toLocaleString("it-IT")} km`}
-                    </p>
-                  )}
-                  {deadline.daysRemaining === null &&
-                    deadline.remainingKm === null &&
-                    "—"}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <Badge variant={urgencyBadgeVariant(deadline.urgency)}>
-                  {urgencyLabel(deadline.urgency)}
-                </Badge>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={handleAdd}>
+          Add Deadline
+        </Button>
+      </div>
+
+      <DeadlineTable
+        rows={deadlines}
+        showVehicle={false}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onComplete={handleComplete}
+      />
+
+      <DeadlineModal
+        key={editingId ?? "new"}
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingId(null);
+          setEditFormData(undefined);
+        }}
+        onSave={handleSave}
+        initialData={
+          editFormData ?? createEmptyDeadlineForm(vehicle.id)
+        }
+        defaultVehicleId={vehicle.id}
+        lockVehicle
+        isEditing={!!editingId}
+      />
+
+      {completeFormData && (
+        <MaintenanceModal
+          key={completingId ?? "complete"}
+          open={completeOpen}
+          onClose={() => {
+            setCompleteOpen(false);
+            setCompletingId(null);
+            setCompleteFormData(undefined);
+          }}
+          onSave={handleCompleteSave}
+          initialData={completeFormData}
+          mode="complete"
+          defaultVehicleId={vehicle.id}
+          lockVehicle
+          lockCategory
+          completeLabel={`Complete ${completingLabel}`}
+        />
+      )}
     </div>
   );
 }
